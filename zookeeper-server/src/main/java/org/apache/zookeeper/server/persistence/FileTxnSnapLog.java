@@ -18,24 +18,13 @@
 
 package org.apache.zookeeper.server.persistence;
 
-import java.io.File;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.jute.Record;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs.OpCode;
 import org.apache.zookeeper.common.Time;
-import org.apache.zookeeper.server.DataTree;
+import org.apache.zookeeper.server.*;
 import org.apache.zookeeper.server.DataTree.ProcessTxnResult;
-import org.apache.zookeeper.server.Request;
-import org.apache.zookeeper.server.ServerMetrics;
-import org.apache.zookeeper.server.ServerStats;
-import org.apache.zookeeper.server.ZooTrace;
 import org.apache.zookeeper.server.persistence.TxnLog.TxnIterator;
 import org.apache.zookeeper.txn.CreateSessionTxn;
 import org.apache.zookeeper.txn.TxnDigest;
@@ -43,22 +32,50 @@ import org.apache.zookeeper.txn.TxnHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * This is a helper class
  * above the implementations
  * of txnlog and snapshot
  * classes
+ *
+ * 用于管理 ZooKeeper 的数据存储等相关操作，可以看作是 ZooKeeper 服务层提供底层持久化的接口。
  */
 public class FileTxnSnapLog {
 
-    //the directory containing the
-    //the transaction logs
+    /**
+     * the directory containing the the transaction logs
+     *
+     * 事务日志文件
+     */
     final File dataDir;
-    //the directory containing the
-    //the snapshot directory
+
+    /**
+     * the directory containing the the snapshot directory
+     *
+     * 快照日志文件
+     */
     final File snapDir;
+
+    /**
+     * 事务日志，类似于 MySQL 中的 rodo log 和 undo log。
+     * 指zookeeper系统在正常运行过程中，针对所有的更新操作，在返回客户端“更新成功”的响应前，zookeeper会保证已经将
+     * 本次更新操作的事务日志已经写到磁盘上。只有这样，整个更新操作才会生效。
+     */
     TxnLog txnLog;
+
+    /**
+     * 快照日志，类似于 MySQL 中的 binlog（全量）
+     */
     SnapShot snapLog;
+
     private final boolean autoCreateDB;
     private final boolean trustEmptySnapshot;
     public static final int VERSION = 2;

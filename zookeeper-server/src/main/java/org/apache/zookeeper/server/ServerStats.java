@@ -18,12 +18,13 @@
 
 package org.apache.zookeeper.server;
 
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.zookeeper.common.Time;
 import org.apache.zookeeper.server.metric.AvgMinMaxCounter;
 import org.apache.zookeeper.server.quorum.BufferStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Basic Server Statistics
@@ -32,7 +33,14 @@ public class ServerStats {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerStats.class);
 
+    /**
+     * 服务端向客户端发送的响应包次数
+     */
     private final AtomicLong packetsSent = new AtomicLong();
+
+    /**
+     * 接收到的客户端发送的请求包次数
+     */
     private final AtomicLong packetsReceived = new AtomicLong();
 
     private final AvgMinMaxCounter requestLatency = new AvgMinMaxCounter("request_latency");

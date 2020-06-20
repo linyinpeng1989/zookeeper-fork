@@ -42,6 +42,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * This class starts and runs a standalone ZooKeeperServer.
+ *
+ * 单机模式 ZooKeeper 服务启动类
  */
 @InterfaceAudience.Public
 public class ZooKeeperServerMain {
@@ -61,11 +63,13 @@ public class ZooKeeperServerMain {
      * Start up the ZooKeeper server.
      *
      * @param args the configfile or the port datadir [ticktime]
+     *
+     * 单机模式 ZooKeeper 服务启动入口
      */
     public static void main(String[] args) {
         ZooKeeperServerMain main = new ZooKeeperServerMain();
         try {
-            // 初始化 ZooKeeper 属性并启动运行
+            // 初始化 ZooKeeper 属性并启动 ZooKeeper 服务
             main.initializeAndRun(args);
         } catch (IllegalArgumentException e) {
             LOG.error("Invalid arguments, exiting abnormally", e);
@@ -135,7 +139,9 @@ public class ZooKeeperServerMain {
             // Note that this thread isn't going to be doing anything else,
             // so rather than spawning another thread, we will just call
             // run() in this thread.
+
             // create a file logger url from the command line args
+            // 创建 FileTxnSnapLog 对象，用于管理 ZooKeeper 的数据存储等相关操作
             txnLog = new FileTxnSnapLog(config.dataLogDir, config.dataDir);
             JvmPauseMonitor jvmPauseMonitor = null;
             if (config.jvmPauseMonitorToRun) {
@@ -146,6 +152,7 @@ public class ZooKeeperServerMain {
 
             // Registers shutdown handler which will be used to know the
             // server error or shutdown state changes.
+            // 创建一个闭锁对象，当服务出现错误或宕机时触发闭锁 countDown()
             final CountDownLatch shutdownLatch = new CountDownLatch(1);
             zkServer.registerServerShutdownHandler(new ZooKeeperServerShutdownHandler(shutdownLatch));
 
@@ -156,8 +163,10 @@ public class ZooKeeperServerMain {
 
             boolean needStartZKServer = true;
             if (config.getClientPortAddress() != null) {
+                // 创建 ServerCnxnFactory 对象，我们可以通过 ServerCnxnFactory 类来设置 ZooKeeper 服务器，指定网络通信所使用的 NIO 框架
                 cnxnFactory = ServerCnxnFactory.createFactory();
                 cnxnFactory.configure(config.getClientPortAddress(), config.getMaxClientCnxns(), config.getClientPortListenBacklog(), false);
+                // 启动 ZooKeeper 服务，包含本地事务日志、快照日志的数据恢复，以及初始化请求处理链等操作
                 cnxnFactory.startup(zkServer);
                 // zkServer has been started. So we don't need to start it again in secureCnxnFactory.
                 needStartZKServer = false;

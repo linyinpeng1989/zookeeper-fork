@@ -180,6 +180,9 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     protected ServerCnxnFactory serverCnxnFactory;
     protected ServerCnxnFactory secureServerCnxnFactory;
 
+    /**
+     * 用于统计 ZooKeeper 服务运行时的状态信息
+     */
     private final ServerStats serverStats;
     private final ZooKeeperServerListener listener;
     private ZooKeeperServerShutdownHandler zkShutdownHandler;
@@ -285,6 +288,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
      *
      */
     public ZooKeeperServer(FileTxnSnapLog txnLogFactory, int tickTime, int minSessionTimeout, int maxSessionTimeout, int clientPortListenBacklog, ZKDatabase zkDb, String initialConfig, boolean reconfigEnabled) {
+        // 创建 ZooKeeper 服务的统计工具类 ServerStats
         serverStats = new ServerStats(this);
         this.txnLogFactory = txnLogFactory;
         this.txnLogFactory.setServerStats(this.serverStats);
@@ -646,8 +650,11 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
             createSessionTracker();
         }
         startSessionTracker();
+
+        // 设置请求处理链：PrepRequestProcessor、SyncRequestProcessor、FinalRequestProcessor 3 个请求处理器
         setupRequestProcessors();
 
+        // 创建请求限流器线程并启动该线程
         startRequestThrottler();
 
         registerJMX();
@@ -676,6 +683,9 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
 
     }
 
+    /**
+     * 设置请求处理链：PrepRequestProcessor、SyncRequestProcessor、FinalRequestProcessor 3 个请求处理器
+     */
     protected void setupRequestProcessors() {
         RequestProcessor finalProcessor = new FinalRequestProcessor(this);
         RequestProcessor syncProcessor = new SyncRequestProcessor(this, finalProcessor);
@@ -726,6 +736,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     protected void setState(State state) {
         this.state = state;
         // Notify server state changes to the registered shutdown handler, if any.
+        // 如果设置了宕机处理对象，则尝试触发闭锁 countDown()
         if (zkShutdownHandler != null) {
             zkShutdownHandler.handle(state);
         } else {

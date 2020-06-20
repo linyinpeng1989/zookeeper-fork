@@ -18,6 +18,9 @@
 
 package org.apache.zookeeper.server;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetAddress;
@@ -28,18 +31,9 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * NIOServerCnxnFactory implements a multi-threaded ServerCnxnFactory using
@@ -616,7 +610,15 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
 
     private volatile boolean stopped = true;
     private ConnectionExpirerThread expirerThread;
+
+    /**
+     * NIO 接收请求的主线程
+     */
     private AcceptThread acceptThread;
+
+    /**
+     * NIO 处理请求的工作线程集合
+     */
     private final Set<SelectorThread> selectorThreads = new HashSet<SelectorThread>();
 
     @Override
@@ -742,10 +744,17 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
 
     @Override
     public void startup(ZooKeeperServer zks, boolean startServer) throws IOException, InterruptedException {
+        // 启动相关线程
         start();
+
+        // 为 ZooKeeperServer 设置网络通信所使用的 NIO 框架
         setZooKeeperServer(zks);
+
         if (startServer) {
+            // 从本地的事务日志文件和快照日志文件中恢复数据
             zks.startdata();
+
+            // 一些系统属性的设置，包括请求处理链初始化、限流器、统计指标初始化等
             zks.startup();
         }
     }

@@ -18,12 +18,13 @@
 
 package org.apache.zookeeper.server;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class manages the cleanup of snapshots and corresponding transaction
@@ -31,6 +32,10 @@ import org.slf4j.LoggerFactory;
  * 'autopurge.purgeInterval'. It keeps the most recent
  * 'autopurge.snapRetainCount' number of snapshots and corresponding transaction
  * logs.
+ *
+ * 面对大流量的网络访问，ZooKeeper 会因此产生海量的数据，如果磁盘数据过多或者磁盘空间不足，则会导致 ZooKeeper 服务器
+ * 不能正常运行，进而影响整个分布式系统。面对这种问题，ZooKeeper 采用了 DatadirCleanupManager 类作为历史文件的清理工具类。
+ * 在 3.4.0 版本后的 ZooKeeper 中更是增加了自动清理历史数据的功能以尽量避免磁盘空间的浪费。
  */
 public class DatadirCleanupManager {
 
@@ -47,14 +52,29 @@ public class DatadirCleanupManager {
 
     private PurgeTaskStatus purgeTaskStatus = PurgeTaskStatus.NOT_STARTED;
 
+    /**
+     * 数据快照存放地址
+     */
     private final File snapDir;
 
+    /**
+     * 日志数据存放地址
+     */
     private final File dataLogDir;
 
+    /**
+     * 表示需要保留的文件数目，默认保留 3 个
+     */
     private final int snapRetainCount;
 
+    /**
+     * 表示清理频率，以小时为单位，需要填写一个 1 或者更大的整数。默认是 0，表示不开启定时清理功能。
+     */
     private final int purgeInterval;
 
+    /**
+     * 定时器
+     */
     private Timer timer;
 
     /**
@@ -102,7 +122,10 @@ public class DatadirCleanupManager {
             return;
         }
 
+        // 创建一个定时器，该定时器关联的线程名称指定为 PurgeTask，isDaemon = true 表示该定时器关联的线程以守护线程的方式运行
         timer = new Timer("PurgeTask", true);
+
+        // 创建定时器任务并启动定时任务，以 purgeInterval 作为清理频率
         TimerTask task = new PurgeTask(dataLogDir, snapDir, snapRetainCount);
         timer.scheduleAtFixedRate(task, 0, TimeUnit.HOURS.toMillis(purgeInterval));
 

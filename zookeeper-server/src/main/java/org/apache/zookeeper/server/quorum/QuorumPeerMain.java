@@ -83,7 +83,7 @@ public class QuorumPeerMain {
     public static void main(String[] args) {
         QuorumPeerMain main = new QuorumPeerMain();
         try {
-            // 初始化 ZooKeeper 属性并启动运行
+            // 初始化 ZooKeeper 属性并启动 ZooKeeper 服务
             main.initializeAndRun(args);
         } catch (IllegalArgumentException e) {
             LOG.error("Invalid arguments, exiting abnormally", e);
@@ -116,12 +116,14 @@ public class QuorumPeerMain {
     }
 
     protected void initializeAndRun(String[] args) throws ConfigException, IOException, AdminServerException {
+        // zoo.cfg 配置文件解析
         QuorumPeerConfig config = new QuorumPeerConfig();
         if (args.length == 1) {
             config.parse(args[0]);
         }
 
-        // Start and schedule the the purge task
+        // Start and schedule the purge task
+        // 创建文件清理器并启动，定时清理历史文件
         DatadirCleanupManager purgeMgr = new DatadirCleanupManager(
             config.getDataDir(),
             config.getDataLogDir(),
@@ -129,6 +131,7 @@ public class QuorumPeerMain {
             config.getPurgeInterval());
         purgeMgr.start();
 
+        // 判断是否采取集群模式
         if (args.length == 1 && config.isDistributed()) {
             runFromConfig(config);
         } else {
@@ -138,6 +141,13 @@ public class QuorumPeerMain {
         }
     }
 
+    /**
+     * 根据配置信息初始化 ZooKeeper 服务，并设置集群相关配置
+     *
+     * @param config
+     * @throws IOException
+     * @throws AdminServerException
+     */
     public void runFromConfig(QuorumPeerConfig config) throws IOException, AdminServerException {
         try {
             ManagedUtil.registerLog4jMBeans();
@@ -169,11 +179,16 @@ public class QuorumPeerMain {
                 secureCnxnFactory.configure(config.getSecureClientPortAddress(), config.getMaxClientCnxns(), config.getClientPortListenBacklog(), true);
             }
 
+            // 创建一个 QuorumPeer 实例（每个 QuorumPeer 类的实例可以看作是 ZooKeeper 集群中的一台服务器），并初始化一些配置属性
             quorumPeer = getQuorumPeer();
+            // 设置 FileTxnSnapLog 实例，用于管理 ZooKeeper 的数据存储等相关操作
             quorumPeer.setTxnFactory(new FileTxnSnapLog(config.getDataLogDir(), config.getDataDir()));
             quorumPeer.enableLocalSessions(config.areLocalSessionsEnabled());
             quorumPeer.enableLocalSessionsUpgrading(config.isLocalSessionsUpgradingEnabled());
             //quorumPeer.setQuorumPeers(config.getAllMembers());
+
+            // 设置 Leader 选举算法（在 ZooKeeper 中提供了 3 种 Leader 选举算法，
+            // 分别是LeaderElection 、AuthFastLeaderElection、FastLeaderElection，目前仅支持 FastLeaderElection）
             quorumPeer.setElectionType(config.getElectionAlg());
             quorumPeer.setMyid(config.getServerId());
             quorumPeer.setTickTime(config.getTickTime());
@@ -191,6 +206,7 @@ public class QuorumPeerMain {
                 quorumPeer.setLastSeenQuorumVerifier(config.getLastSeenQuorumVerifier(), false);
             }
             quorumPeer.initConfigInZKDatabase();
+            // ServerCnxnFactory 类 NIO 工厂方法
             quorumPeer.setCnxnFactory(cnxnFactory);
             quorumPeer.setSecureCnxnFactory(secureCnxnFactory);
             quorumPeer.setSslQuorum(config.isSslQuorum());
@@ -221,6 +237,7 @@ public class QuorumPeerMain {
                 quorumPeer.setJvmPauseMonitor(new JvmPauseMonitor(config));
             }
 
+            // 启动该 QuorumPeer 实例（线程），即启动当前这个 ZooKeeper 服务节点
             quorumPeer.start();
             ZKAuditProvider.addZKStartStopAuditLog();
             quorumPeer.join();
