@@ -28,6 +28,8 @@ import org.apache.zookeeper.data.Stat;
 
 /**
  * get command for cli
+ *
+ * 获取节点数据命令
  */
 public class GetCommand extends CliCommand {
 

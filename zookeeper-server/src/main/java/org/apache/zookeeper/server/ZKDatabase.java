@@ -18,23 +18,6 @@
 
 package org.apache.zookeeper.server;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import org.apache.jute.InputArchive;
 import org.apache.jute.OutputArchive;
 import org.apache.jute.Record;
@@ -59,6 +42,16 @@ import org.apache.zookeeper.txn.TxnDigest;
 import org.apache.zookeeper.txn.TxnHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 /**
  * This class maintains the in memory database of zookeeper
@@ -96,6 +89,8 @@ public class ZKDatabase {
 
     /**
      * Number of txn since last snapshot;
+     *
+     * 从上一个快照日志生成后，事务日志的个数。每次 ZooKeeper Server 将快照日志输出为一个 snapshot 文件时，txnCount 会清零。
      */
     private AtomicInteger txnCount = new AtomicInteger(0);
 
@@ -240,6 +235,8 @@ public class ZKDatabase {
     /**
      * get the last processed zxid from a datatree
      * @return the last processed zxid of a datatree
+     *
+     * 获取 ZooKeeper 最新的事务 ID
      */
     public long getDataTreeLastProcessedZxid() {
         return dataTree.lastProcessedZxid;
@@ -635,6 +632,8 @@ public class ZKDatabase {
      * append to the underlying transaction log
      * @param si the request to append
      * @return true if the append was succesfull and false if not
+     *
+     * 将 si 添加到快照日志中，并将事务日志计数 + 1
      */
     public boolean append(Request si) throws IOException {
         txnCount.incrementAndGet();
@@ -645,7 +644,9 @@ public class ZKDatabase {
      * roll the underlying log
      */
     public void rollLog() throws IOException {
+        // 将快照日志输出为一个 snapshot 文件
         this.snapLog.rollLog();
+        // 重置 txnCount 等属性
         resetTxnCount();
     }
 

@@ -18,19 +18,16 @@
 
 package org.apache.zookeeper.server;
 
+import org.apache.zookeeper.common.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Flushable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import org.apache.zookeeper.common.Time;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.concurrent.*;
 
 /**
  * This RequestProcessor logs requests to disk. It batches the requests to do
@@ -48,6 +45,9 @@ import org.slf4j.LoggerFactory;
  *             It never send ack back to the leader, so the nextProcessor will
  *             be null. This change the semantic of txnlog on the observer
  *             since it only contains committed txns.
+ *
+ *
+ * SyncRequestProcessor 处理器将请求存入磁盘，其将请求批量的存入磁盘以提高效率，请求在写入磁盘之前是不会被转发到下个处理器的。
  */
 public class SyncRequestProcessor extends ZooKeeperCriticalThread implements RequestProcessor {
 
@@ -60,21 +60,34 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements Req
 
     /**
      * The total size of log entries before starting a snapshot
+     *
+     * 在开始一个新的快照时，所有日志个数总和
      */
     private static long snapSizeInBytes = ZooKeeperServer.getSnapSizeInBytes();
 
     /**
      * Random numbers used to vary snapshot timing
+     *
+     *
      */
     private int randRoll;
     private long randSize;
 
+    /**
+     * 请求队列
+     */
     private final BlockingQueue<Request> queuedRequests = new LinkedBlockingQueue<Request>();
 
     private final Semaphore snapThreadMutex = new Semaphore(1);
 
+    /**
+     * ZooKeeper 服务器
+     */
     private final ZooKeeperServer zks;
 
+    /**
+     * 请求处理器链中下一个处理器：FinalRequestProcessor
+     */
     private final RequestProcessor nextProcessor;
 
     /**
@@ -140,6 +153,12 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements Req
         snapSizeInBytes = size;
     }
 
+    /**
+     * 每当log写到一定数目时，ZooKeeper会将当前快照日志输出为一个snapshot文件。
+     * 这里就是判断是否需要输出 snapshot 文件
+     *
+     * @return
+     */
     private boolean shouldSnapshot() {
         int logCount = zks.getZKDatabase().getTxnCount();
         long logSize = zks.getZKDatabase().getTxnSize();
@@ -147,6 +166,9 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements Req
                || (snapSizeInBytes > 0 && logSize > (snapSizeInBytes / 2 + randSize));
     }
 
+    /**
+     * 重新设置快照随机数，避免几台 ZK Server 在同一时间都做 snapshot
+     */
     private void resetSnapshotStats() {
         randRoll = ThreadLocalRandom.current().nextInt(snapCount / 2);
         randSize = Math.abs(ThreadLocalRandom.current().nextLong() % (snapSizeInBytes / 2));
@@ -159,17 +181,23 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements Req
             // in the ensemble take a snapshot at the same time
             resetSnapshotStats();
             lastFlushTime = Time.currentElapsedTime();
+            // 轮询
             while (true) {
                 ServerMetrics.getMetrics().SYNC_PROCESSOR_QUEUE_SIZE.add(queuedRequests.size());
 
                 long pollTime = Math.min(zks.getMaxWriteQueuePollTime(), getRemainingDelay());
+
+                // 从请求队列中阻塞获取一个请求，超时返回null
                 Request si = queuedRequests.poll(pollTime, TimeUnit.MILLISECONDS);
                 if (si == null) {
                     /* We timed out looking for more writes to batch, go ahead and flush immediately */
+                    // 刷新到磁盘
                     flush();
+                    // 从请求队列中取出一个请求，若队列为空会阻塞
                     si = queuedRequests.take();
                 }
 
+                // 在关闭处理器之后，会添加requestOfDeath，表示关闭后不再处理请求
                 if (si == REQUEST_OF_DEATH) {
                     break;
                 }
@@ -178,10 +206,12 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements Req
                 ServerMetrics.getMetrics().SYNC_PROCESSOR_QUEUE_TIME.add(startProcessTime - si.syncQueueStartTime);
 
                 // track the number of records written to the log
+                // 将 si 添加到快照日志中，并将事务日志计数 + 1
                 if (!si.isThrottled() && zks.getZKDatabase().append(si)) {
+                    // 判断是否需要输出 snapshot 文件（每当log写到一定数目时，ZooKeeper会将当前快照日志输出为一个snapshot文件）
                     if (shouldSnapshot()) {
                         resetSnapshotStats();
-                        // roll the log
+                        // roll the log 将快照日志输出为一个 snapshot 文件
                         zks.getZKDatabase().rollLog();
                         // take a snapshot
                         if (!snapThreadMutex.tryAcquire()) {
@@ -274,6 +304,8 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements Req
         Objects.requireNonNull(request, "Request cannot be null");
 
         request.syncQueueStartTime = Time.currentElapsedTime();
+
+        // 添加到请求队列中，等待 run() 函数轮询处理
         queuedRequests.add(request);
         ServerMetrics.getMetrics().SYNC_PROCESSOR_QUEUED.add(1);
     }

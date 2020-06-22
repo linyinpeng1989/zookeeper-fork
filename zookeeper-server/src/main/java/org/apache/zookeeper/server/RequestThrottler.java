@@ -19,11 +19,12 @@
 package org.apache.zookeeper.server;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.zookeeper.common.Time;
 import org.apache.zookeeper.util.ServiceUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * When enabled, the RequestThrottler limits the number of outstanding requests
@@ -244,6 +245,7 @@ public class RequestThrottler extends ZooKeeperCriticalThread {
             LOG.debug("Shutdown in progress. Request cannot be processed");
             dropRequest(request);
         } else {
+            // 将请求添加到 限流器 的请求队列中，等待 run() 方法轮询执行
             request.requestThrottleQueueTime = Time.currentElapsedTime();
             submittedRequests.add(request);
         }

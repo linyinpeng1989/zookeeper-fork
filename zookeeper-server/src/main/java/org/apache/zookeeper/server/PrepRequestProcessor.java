@@ -71,6 +71,9 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements Req
 
     LinkedBlockingQueue<Request> submittedRequests = new LinkedBlockingQueue<Request>();
 
+    /**
+     * 请求处理链的下一个处理器：SyncRequestProcessor
+     */
     private final RequestProcessor nextProcessor;
     private final boolean digestEnabled;
     private DigestCalculator digestCalculator;
@@ -538,6 +541,7 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements Req
             setTxnDigest(request, nodeRecord.precalculatedDigest);
             addChangeRecord(nodeRecord);
             break;
+        // 创建会话请求
         case OpCode.createSession:
             request.request.rewind();
             int to = request.request.getInt();
@@ -747,10 +751,12 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements Req
         request.setHdr(null);
         request.setTxn(null);
 
+        // 判断是否被限流，未被限流则调用 pRequestHelper 方法
         if (!request.isThrottled()) {
           pRequestHelper(request);
         }
 
+        // 获取 ZooKeeper 服务端最新的事务 ID（zxid）
         request.zxid = zks.getZxid();
         ServerMetrics.getMetrics().PREP_PROCESS_TIME.add(Time.currentElapsedTime() - request.prepStartTime);
         nextProcessor.processRequest(request);

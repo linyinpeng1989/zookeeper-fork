@@ -123,11 +123,15 @@ public class ClientCnxn {
 
     /**
      * These are the packets that have been sent and are waiting for a response.
+     *
+     * 请求响应队列
      */
     private final Queue<Packet> pendingQueue = new ArrayDeque<>();
 
     /**
      * These are the packets that need to be sent.
+     *
+     * 请求发送队列
      */
     private final LinkedBlockingDeque<Packet> outgoingQueue = new LinkedBlockingDeque<Packet>();
 
@@ -162,15 +166,18 @@ public class ClientCnxn {
     final String chrootPath;
 
     /**
-     * 轮询线程：轮询地从 outgoingQueue 队列中获取 ZooKeeper 塞入的 Packet 包，并通过 ClientCnxnSocketNIO 发送给服务器，
+     * SendThread 类本质是一个 I/O 调度线程，用来管理操作客户端和服务端的网络 I/O 等。在 ZooKeeper 服务的运行过程中，
+     * SendThread 主要由两个作用：
+     *      1. 轮询地从 outgoingQueue 队列中获取 ZooKeeper 塞入的 Packet 包，并通过 ClientCnxnSocketNIO 发送给服务器，
      * 并把发送的 Packet 塞入 pendingQueue 队列中等待服务端的 response ,同时也从同服务端建立的管道中读取 response
-     * 并把相应的 Packet 移出 pendingQueue ,放入 EventThrad 负责处理的 waitingEvents 队列中,
-     * SendThread也负责和集群连接的建立、断开和session的ping连接
+     * 并把相应的 Packet 移出 pendingQueue ,放入 EventThrad 负责处理的 waitingEvents 队列中。
+     *      2. SendThread也负责和集群连接的建立、断开和session的ping连接。
      */
     final SendThread sendThread;
 
     /**
-     * 轮询线程：负责处理 waitingEvent 队列中 Packet,把 Packet 中finished标识为true，使得阻塞的客户端函数返回并且取得 Packet
+     * EventThread 类主要负责客户端的事件处理，比如在客户端接收 Watch 通知时，触发客户端的相关方法。
+     *      1. 负责处理 waitingEvent 队列中的 Packet,把 Packet 中finished标识为true，使得阻塞的客户端函数返回并且取得 Packet
      * 中的response,根据不同的response调用不同的回调实现方法处理事件，其中 waitingEvent 队列采用LinkedBlockingQueue
      */
     final EventThread eventThread;
@@ -250,22 +257,44 @@ public class ClientCnxn {
 
     /**
      * This class allows us to pass the headers and the relevant records around.
+     *
+     * Packet 是 ZooKeeper 中用来进行网络通信的数据结构，主要作用是封装了网络通信协议层的数据
      */
     static class Packet {
 
+        /**
+         * 请求头信息
+         */
         RequestHeader requestHeader;
 
+        /**
+         * 响应头信息
+         */
         ReplyHeader replyHeader;
 
+        /**
+         * 请求体信息
+         */
         Record request;
 
+        /**
+         * 响应体信息
+         */
         Record response;
 
         ByteBuffer bb;
 
-        /** Client's view of the path (may differ due to chroot) **/
+        /**
+         * Client's view of the path (may differ due to chroot)
+         *
+         * 节点路径
+         */
         String clientPath;
-        /** Servers's view of the path (may differ due to chroot) **/
+        /**
+         * Servers's view of the path (may differ due to chroot)
+         *
+         * 服务器地址
+         */
         String serverPath;
 
         boolean finished;
@@ -306,6 +335,11 @@ public class ClientCnxn {
             this.watchRegistration = watchRegistration;
         }
 
+        /**
+         * 将 Packet 对象的数据进行序列化，以便用于网络传输
+         *
+         * 只是对请求头信息（requestHeader）、请求体信息（request）、只读（readOnly）这三个属性字段进行序列化
+         */
         public void createBB() {
             try {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -1107,8 +1141,12 @@ public class ClientCnxn {
             return paths;
         }
 
+        /**
+         * 向 ZooKeeper 服务端发送心跳检查
+         */
         private void sendPing() {
             lastPingSentNs = System.nanoTime();
+            // xid（用于记录请求发起的先后序号）设置为固定值 -2，type（操作类型）设置为 OpCode.ping
             RequestHeader h = new RequestHeader(ClientCnxn.PING_XID, OpCode.ping);
             queuePacket(h, null, null, null, null, null, null, null, null);
         }

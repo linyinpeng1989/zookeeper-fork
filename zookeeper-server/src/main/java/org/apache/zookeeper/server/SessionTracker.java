@@ -18,17 +18,20 @@
 
 package org.apache.zookeeper.server;
 
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.SessionExpiredException;
+
 import java.io.PrintWriter;
 import java.util.Map;
 import java.util.Set;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.KeeperException.SessionExpiredException;
 
 /**
  * This is the basic interface that ZooKeeperServer uses to track sessions. The
  * standalone and leader ZooKeeperServer use the same SessionTracker. The
  * FollowerZooKeeperServer uses a SessionTracker which is basically a simple
  * shell to track information to be forwarded to the leader.
+ *
+ * SessionTracker 类用于定义了 ZooKeeper 会话管理的相关操作行为
  */
 public interface SessionTracker {
 

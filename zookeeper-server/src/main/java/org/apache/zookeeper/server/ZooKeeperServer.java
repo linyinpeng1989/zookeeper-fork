@@ -145,7 +145,12 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     private ZKDatabase zkDb;
     private ResponseCache readResponseCache;
     private ResponseCache getChildrenResponseCache;
+
+    /**
+     * 用于生成 ZooKeeper 唯一事务 ID
+     */
     private final AtomicLong hzxid = new AtomicLong(0);
+
     public static final Exception ok = new Exception("No prob");
     protected RequestProcessor firstProcessor;
     protected JvmPauseMonitor jvmPauseMonitor;
@@ -559,6 +564,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     }
 
     private void close(long sessionId) {
+        // 发送会话过期的请求操作
         Request si = new Request(null, sessionId, 0, OpCode.closeSession, null, null);
         submitRequest(si);
     }

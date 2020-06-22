@@ -18,6 +18,12 @@
 
 package org.apache.zookeeper.server;
 
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.SessionExpiredException;
+import org.apache.zookeeper.common.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.MessageFormat;
@@ -29,11 +35,6 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.KeeperException.SessionExpiredException;
-import org.apache.zookeeper.common.Time;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This is a full featured SessionTracker. It tracks session in grouped by tick
@@ -45,11 +46,21 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
 
     private static final Logger LOG = LoggerFactory.getLogger(SessionTrackerImpl.class);
 
+    /**
+     * 根据会话 ID 来管理具体的会话实体
+     */
     protected final ConcurrentHashMap<Long, SessionImpl> sessionsById = new ConcurrentHashMap<Long, SessionImpl>();
 
+    /**
+     * 会话过期队列，维护会话实体及其过期时间的关系
+     */
     private final ExpiryQueue<SessionImpl> sessionExpiryQueue;
 
+    /**
+     * 根据会话 ID 管理每个会话的超时时间
+     */
     private final ConcurrentMap<Long, Integer> sessionsWithTimeout;
+
     private final AtomicLong nextSessionId = new AtomicLong();
 
     public static class SessionImpl implements Session {
@@ -60,8 +71,19 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
             isClosing = false;
         }
 
+        /**
+         * 会话ID
+         */
         final long sessionId;
+
+        /**
+         * 会话超时时间
+         */
         final int timeout;
+
+        /**
+         * 会话关闭状态
+         */
         boolean isClosing;
 
         Object owner;
@@ -93,6 +115,8 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
      *
      * @param id server Id
      * @return the session Id
+     *
+     * 生成一个会话ID
      */
     public static long initializeNextSessionId(long id) {
         long nextSid;
@@ -156,6 +180,7 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
     @Override
     public void run() {
         try {
+            // 轮询处理会话过期相关操作
             while (running) {
                 long waitTime = sessionExpiryQueue.getWaitTime();
                 if (waitTime > 0) {
@@ -163,9 +188,14 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
                     continue;
                 }
 
+                // sessionExpiryQueue.poll() 移除当前会话过期时间段对应的会话集合，并返回该集合。
                 for (SessionImpl s : sessionExpiryQueue.poll()) {
                     ServerMetrics.getMetrics().STALE_SESSIONS_EXPIRED.add(1);
+
+                    // 设置会话实体的状态为关闭
                     setSessionClosing(s.sessionId);
+
+                    // 发起会话过期的请求操作，进行会话过期的清理工作
                     expirer.expire(s);
                 }
             }
@@ -267,6 +297,7 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
     public synchronized boolean trackSession(long id, int sessionTimeout) {
         boolean added = false;
 
+        // 根据会话ID查询是否存在会话实体，不存在则创建 SessionImpl 实例
         SessionImpl session = sessionsById.get(id);
         if (session == null) {
             session = new SessionImpl(id, sessionTimeout);
@@ -292,6 +323,7 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
                 + " session 0x" + Long.toHexString(id) + " " + sessionTimeout);
         }
 
+        // 将会话实体维护到会话过期队列中
         updateSessionExpiry(session, sessionTimeout);
         return added;
     }
@@ -306,6 +338,8 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
 
     public synchronized void checkSession(long sessionId, Object owner) throws KeeperException.SessionExpiredException, KeeperException.SessionMovedException, KeeperException.UnknownSessionException {
         LOG.debug("Checking session 0x{}", Long.toHexString(sessionId));
+
+        // 获取会话 ID 对应的会话实体
         SessionImpl session = sessionsById.get(sessionId);
 
         if (session == null) {
