@@ -18,22 +18,15 @@
 
 package org.apache.zookeeper.server.quorum;
 
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-import javax.management.JMException;
 import org.apache.zookeeper.KeeperException.SessionExpiredException;
 import org.apache.zookeeper.jmx.MBeanRegistry;
 import org.apache.zookeeper.metrics.MetricsContext;
-import org.apache.zookeeper.server.ContainerManager;
-import org.apache.zookeeper.server.DataTreeBean;
-import org.apache.zookeeper.server.FinalRequestProcessor;
-import org.apache.zookeeper.server.PrepRequestProcessor;
-import org.apache.zookeeper.server.Request;
-import org.apache.zookeeper.server.RequestProcessor;
-import org.apache.zookeeper.server.ServerCnxn;
-import org.apache.zookeeper.server.ServerMetrics;
-import org.apache.zookeeper.server.ZKDatabase;
+import org.apache.zookeeper.server.*;
 import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
+
+import javax.management.JMException;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -41,6 +34,8 @@ import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
  * processors: PrepRequestProcessor -&gt; ProposalRequestProcessor -&gt;
  * CommitProcessor -&gt; Leader.ToBeAppliedRequestProcessor -&gt;
  * FinalRequestProcessor
+ *
+ *
  */
 public class LeaderZooKeeperServer extends QuorumZooKeeperServer {
 
@@ -61,6 +56,9 @@ public class LeaderZooKeeperServer extends QuorumZooKeeperServer {
         return self.leader;
     }
 
+    /**
+     * 设置请求处理链：PrepRequestProcessor、ProposalRequestProcessor、CommitProcessor、Leader.ToBeAppliedRequestProcessor、FinalRequestProcessor
+     */
     @Override
     protected void setupRequestProcessors() {
         RequestProcessor finalProcessor = new FinalRequestProcessor(this);

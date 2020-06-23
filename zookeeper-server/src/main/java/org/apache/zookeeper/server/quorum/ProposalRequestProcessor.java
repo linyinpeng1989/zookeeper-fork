@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 /**
  * This RequestProcessor simply forwards requests to an AckRequestProcessor and
  * SyncRequestProcessor.
+ *
+ * 用于向Follower发送Proposal，来完成Zab算法
  */
 public class ProposalRequestProcessor implements RequestProcessor {
 

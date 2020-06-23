@@ -51,6 +51,8 @@ import java.util.*;
  *
  * This RequestProcessor counts on ZooKeeperServer to populate the
  * outstandingRequests member of ZooKeeperServer.
+ *
+ * 负责将Transaction Log应用到DataTree上，并给客户端回复
  */
 public class FinalRequestProcessor implements RequestProcessor {
 

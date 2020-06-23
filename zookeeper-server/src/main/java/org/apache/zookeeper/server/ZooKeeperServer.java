@@ -657,7 +657,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         }
         startSessionTracker();
 
-        // 设置请求处理链：PrepRequestProcessor、SyncRequestProcessor、FinalRequestProcessor 3 个请求处理器
+        // 设置请求处理链（单机模式 与 集群模式，请求处理链不同）
         setupRequestProcessors();
 
         // 创建请求限流器线程并启动该线程

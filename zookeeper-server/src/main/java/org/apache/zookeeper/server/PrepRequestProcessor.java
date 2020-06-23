@@ -58,6 +58,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  * state of the system. It counts on ZooKeeperServer to update
  * outstandingRequests, so that it can take into account transactions that are
  * in the queue to be applied when generating a transaction.
+ *
+ * 一般放在处理链的起始部分，对请求做一些预处理，比如：检查 Session、检查节点是否存在、检查客户端是否有权限等
  */
 public class PrepRequestProcessor extends ZooKeeperCriticalThread implements RequestProcessor {
 
@@ -69,6 +71,9 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements Req
      */
     private static boolean failCreate = false;
 
+    /**
+     * PrepRequestProcessor 处理器对应的请求队列
+     */
     LinkedBlockingQueue<Request> submittedRequests = new LinkedBlockingQueue<Request>();
 
     /**
@@ -108,8 +113,11 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements Req
     public void run() {
         LOG.info(String.format("PrepRequestProcessor (sid:%d) started, reconfigEnabled=%s", zks.getServerId(), zks.reconfigEnabled));
         try {
+            // 轮询请求队列 submittedRequests 中的请求并处理
             while (true) {
                 ServerMetrics.getMetrics().PREP_PROCESSOR_QUEUE_SIZE.add(submittedRequests.size());
+
+                // 获取请求队列中的请求
                 Request request = submittedRequests.take();
                 ServerMetrics.getMetrics().PREP_PROCESSOR_QUEUE_TIME
                     .add(Time.currentElapsedTime() - request.prepQueueStartTime);
@@ -1037,6 +1045,10 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements Req
         return rv;
     }
 
+    /**
+     * 将请求提交到请求队列 submittedRequests 中，等待 run() 方法轮询处理
+     * @param request
+     */
     public void processRequest(Request request) {
         request.prepQueueStartTime = Time.currentElapsedTime();
         submittedRequests.add(request);

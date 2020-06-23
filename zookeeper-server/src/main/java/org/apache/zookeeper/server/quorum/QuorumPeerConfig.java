@@ -168,6 +168,7 @@ public class QuorumPeerConfig {
                 .failForNonExistingPath()
                 .build()).create(path);
 
+            // 读取配置文件，转化为 Properties 实例
             Properties cfg = new Properties();
             FileInputStream in = new FileInputStream(configFile);
             try {
@@ -180,6 +181,7 @@ public class QuorumPeerConfig {
             /* Read entire config file as initial configuration */
             initialConfig = new String(Files.readAllBytes(configFile.toPath()));
 
+            // 解析 Properties 实例
             parseProperties(cfg);
         } catch (IOException e) {
             throw new ConfigException("Error processing " + path, e);
@@ -264,6 +266,8 @@ public class QuorumPeerConfig {
      * @param zkProp Properties to parse from.
      * @throws IOException
      * @throws ConfigException
+     *
+     * 根据配置文件，设置 ZooKeeper 相关属性
      */
     public void parseProperties(Properties zkProp) throws IOException, ConfigException {
         int clientPort = 0;
@@ -675,6 +679,7 @@ public class QuorumPeerConfig {
             }
         }
 
+        // 创建集群验证器，用于判断一组 server 能否构建集群
         QuorumVerifier qv = createQuorumVerifier(dynamicConfigProp, isHierarchical);
 
         int numParticipators = qv.getVotingMembers().size();

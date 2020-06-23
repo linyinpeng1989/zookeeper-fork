@@ -18,25 +18,39 @@
 
 package org.apache.zookeeper.server.quorum.flexible;
 
+import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
+import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
+import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
-import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
-import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
 
 /**
  * This class implements a validator for majority quorums. The implementation is
  * straightforward.
  *
+ * 集群验证器，用于判断一组 server 能否构建集群
  */
 public class QuorumMaj implements QuorumVerifier {
 
+    /**
+     * 所有的服务节点集合
+     */
     private Map<Long, QuorumServer> allMembers = new HashMap<Long, QuorumServer>();
+
+    /**
+     * 可参加 Leader 选举的服务节点集合（Leader + Follower）
+     */
     private Map<Long, QuorumServer> votingMembers = new HashMap<Long, QuorumServer>();
+
+    /**
+     * 所有 observe 节点集合
+     */
     private Map<Long, QuorumServer> observingMembers = new HashMap<Long, QuorumServer>();
+
     private long version = 0;
     private int half;
 
@@ -91,6 +105,7 @@ public class QuorumMaj implements QuorumVerifier {
                 long sid = Long.parseLong(key.substring(dot + 1));
                 QuorumServer qs = new QuorumServer(sid, value);
                 allMembers.put(Long.valueOf(sid), qs);
+                // 解析参与选举的节点和 observe 节点
                 if (qs.type == LearnerType.PARTICIPANT) {
                     votingMembers.put(Long.valueOf(sid), qs);
                 } else {

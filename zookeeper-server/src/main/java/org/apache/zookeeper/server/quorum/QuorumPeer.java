@@ -84,9 +84,6 @@ import static org.apache.zookeeper.common.NetUtils.formatInetAddr;
  * </pre>
  *
  * The request for the current leader will consist solely of an xid: int xid;
- *
- *
- * 每个 QuorumPeer 类的实例可以看作是 ZooKeeper 集群中的一台服务器
  */
 public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider {
 
@@ -1246,14 +1243,33 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     public Leader leader;
     public Observer observer;
 
+    /**
+     * 创建 Follower
+     * @param logFactory
+     * @return
+     * @throws IOException
+     */
     protected Follower makeFollower(FileTxnSnapLog logFactory) throws IOException {
         return new Follower(this, new FollowerZooKeeperServer(logFactory, this, this.zkDb));
     }
 
+    /**
+     * 创建 Leader
+     * @param logFactory
+     * @return
+     * @throws IOException
+     * @throws X509Exception
+     */
     protected Leader makeLeader(FileTxnSnapLog logFactory) throws IOException, X509Exception {
         return new Leader(this, new LeaderZooKeeperServer(logFactory, this, this.zkDb));
     }
 
+    /**
+     * 创建 Observer
+     * @param logFactory
+     * @return
+     * @throws IOException
+     */
     protected Observer makeObserver(FileTxnSnapLog logFactory) throws IOException {
         return new Observer(this, new ObserverZooKeeperServer(logFactory, this, this.zkDb));
     }
@@ -1330,6 +1346,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         try {
             jmxQuorumBean = new QuorumBean(this);
             MBeanRegistry.getInstance().register(jmxQuorumBean, null);
+
+            // 获取配置的所有节点信息，区分本地节点和远程节点
             for (QuorumServer s : getView().values()) {
                 ZKMBeanInfo p;
                 if (getId() == s.id) {

@@ -237,7 +237,7 @@ public class QuorumPeerMain {
                 quorumPeer.setJvmPauseMonitor(new JvmPauseMonitor(config));
             }
 
-            // 启动该 QuorumPeer 实例（线程），即启动当前这个 ZooKeeper 服务节点
+            // 启动该 QuorumPeer 实例（线程）：恢复内存数据，设置网络通信框架、选举 Leader 等。并在run() 方法中创建不同角色的服务实例（Leader、Follower、Observe）
             quorumPeer.start();
             ZKAuditProvider.addZKStartStopAuditLog();
             quorumPeer.join();
