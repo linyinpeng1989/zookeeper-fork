@@ -18,6 +18,12 @@
 
 package org.apache.zookeeper.server.quorum.flexible;
 
+import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
+import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
+import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -27,11 +33,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
-import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
-import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class implements a validator for hierarchical quorums. With this
@@ -323,6 +324,8 @@ public class QuorumHierarchical implements QuorumVerifier {
 
     /**
      * Verifies if a given set is a quorum.
+     *
+     * 校验给定的集合是否为有效的集群
      */
     public boolean containsQuorum(Set<Long> set) {
         HashMap<Long, Long> expansion = new HashMap<Long, Long>();

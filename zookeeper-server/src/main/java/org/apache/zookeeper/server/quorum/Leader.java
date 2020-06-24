@@ -232,13 +232,18 @@ public class Leader extends LearnerMaster {
      * and false otherwise
      *
      * @param qv, a QuorumVerifier
+     *
+     * 判断 ZooKeeper 集群中的 Follower 节点的连接状态
      */
     public boolean isQuorumSynced(QuorumVerifier qv) {
         HashSet<Long> ids = new HashSet<Long>();
+        // 添加本节点
         if (qv.getVotingMembers().containsKey(self.getId())) {
             ids.add(self.getId());
         }
+        // 加锁保证线程安全
         synchronized (forwardingFollowers) {
+            // 判断每一个节点的连接状态
             for (LearnerHandler learnerHandler : forwardingFollowers) {
                 if (learnerHandler.synced() && qv.getVotingMembers().containsKey(learnerHandler.getSid())) {
                     ids.add(learnerHandler.getSid());
