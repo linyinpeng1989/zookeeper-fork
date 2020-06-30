@@ -585,6 +585,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
 
     /**
      * This is who I think the leader currently is.
+     *
+     * 当前 ZooKeeper 服务认为的 Leader 服务器
      */
     private volatile Vote currentVote;
 
@@ -1136,6 +1138,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
      */
     public synchronized void startLeaderElection() {
         try {
+            // 如果当前服务的状态为 LOOKING，则将自身作为 Leader 服务器进行投票（发送的服务器的 myid（服务器标识符）
+            // 和 ZXID (集群投票信息标识符)等选票信息字段都指向本机服务器）
             if (getPeerState() == ServerState.LOOKING) {
                 currentVote = new Vote(myid, getLastLoggedZxid(), getCurrentEpoch());
             }
@@ -1417,6 +1421,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                                 shuttingDownLE = false;
                                 startLeaderElection();
                             }
+                            // 开始寻找 Leader 节点
                             setCurrentVote(makeLEStrategy().lookForLeader());
                         } catch (Exception e) {
                             LOG.warn("Unexpected exception", e);

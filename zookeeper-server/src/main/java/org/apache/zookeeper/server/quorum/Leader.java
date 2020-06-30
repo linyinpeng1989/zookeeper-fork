@@ -115,7 +115,11 @@ public class Leader extends LearnerMaster {
         }
     }
 
-    // list of followers that are ready to follow (i.e synced with the leader)
+    /**
+     * list of followers that are ready to follow (i.e synced with the leader)
+     *
+     * Lead 节点的 Follower 节点集合
+     */
     private final HashSet<LearnerHandler> forwardingFollowers = new HashSet<LearnerHandler>();
 
     /**
@@ -231,7 +235,7 @@ public class Leader extends LearnerMaster {
      * Returns true if a quorum in qv is connected and synced with the leader
      * and false otherwise
      *
-     * @param qv, a QuorumVerifier
+     * @param qv, a QuorumVerifier （集群验证器）
      *
      * 判断 ZooKeeper 集群中的 Follower 节点的连接状态
      */
@@ -250,6 +254,7 @@ public class Leader extends LearnerMaster {
                 }
             }
         }
+        // 判断集群是否可以提供服务，即 ids 是否可以作为一个合法的集群（半数以上可用）
         return qv.containsQuorum(ids);
     }
 

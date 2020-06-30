@@ -131,6 +131,8 @@ public class QuorumCnxManager {
 
     /*
      * Mapping from Peer to Thread number
+     *
+     * 用来管理每一个通信的服务器
      */
     final ConcurrentHashMap<Long, SendWorker> senderWorkerMap;
     final ConcurrentHashMap<Long, BlockingQueue<ByteBuffer>> queueSendMap;
@@ -1121,6 +1123,8 @@ public class QuorumCnxManager {
      * Thread to send messages. Instance waits on a queue, and send a message as
      * soon as there is one available. If connection breaks, then opens a new
      * one.
+     *
+     * 用来向集群中的其他服务器发送投票信息
      */
     class SendWorker extends ZooKeeperThread {
 
@@ -1239,10 +1243,12 @@ public class QuorumCnxManager {
             LOG.debug("SendWorker thread started towards {}. myId: {}", sid, QuorumCnxManager.this.mySid);
 
             try {
+                // 轮询读取消息并发送
                 while (running && !shutdown && sock != null) {
 
                     ByteBuffer b = null;
                     try {
+                        // 获取线程对应的消息队列，并获取队列中的消息
                         BlockingQueue<ByteBuffer> bq = queueSendMap.get(sid);
                         if (bq != null) {
                             b = pollSendQueue(bq, 1000, TimeUnit.MILLISECONDS);
@@ -1251,6 +1257,7 @@ public class QuorumCnxManager {
                             break;
                         }
 
+                        // 发送消息
                         if (b != null) {
                             lastMessageSent.put(sid, b);
                             send(b);
@@ -1303,6 +1310,8 @@ public class QuorumCnxManager {
     /**
      * Thread to receive messages. Instance waits on a socket read. If the
      * channel breaks, then removes itself from the pool of receivers.
+     *
+     * 用来接收集群中其他服务器的消息
      */
     class RecvWorker extends ZooKeeperThread {
 
@@ -1366,6 +1375,7 @@ public class QuorumCnxManager {
                      * Allocates a new ByteBuffer to receive the message
                      */
                     final byte[] msgArray = new byte[length];
+                    // 读取消息内容，并添加到消息接收队列中
                     din.readFully(msgArray, 0, length);
                     addToRecvQueue(new Message(ByteBuffer.wrap(msgArray), sid));
                 }

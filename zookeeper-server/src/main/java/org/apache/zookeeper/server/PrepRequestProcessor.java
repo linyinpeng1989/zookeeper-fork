@@ -386,7 +386,7 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements Req
             setTxnDigest(request, nodeRecord.precalculatedDigest);
             addChangeRecord(nodeRecord);
             break;
-        // 数据同步
+        // 集群数据同步操作
         case OpCode.reconfig:
             if (!zks.isReconfigEnabled()) {
                 LOG.error("Reconfig operation requested but reconfig feature is disabled.");
@@ -507,6 +507,7 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements Req
                 throw new KeeperException.BadArgumentsException(msg);
             }
 
+            // 判断集群是否可用（半数以上节点可用）
             if (!lzks.getLeader().isQuorumSynced(request.qv)) {
                 String msg2 = "Reconfig failed - there must be a connected and synced quorum in new configuration";
                 LOG.warn(msg2);
@@ -519,6 +520,7 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements Req
             // 向集群中的 Follower 服务器发送数据变更的会话请求
             SetDataTxn setDataTxn = new SetDataTxn(ZooDefs.CONFIG_NODE, request.qv.toString().getBytes(), -1);
             request.setTxn(setDataTxn);
+
             nodeRecord = nodeRecord.duplicate(request.getHdr().getZxid());
             nodeRecord.stat.setVersion(-1);
             nodeRecord.stat.setMtime(request.getHdr().getTime());
