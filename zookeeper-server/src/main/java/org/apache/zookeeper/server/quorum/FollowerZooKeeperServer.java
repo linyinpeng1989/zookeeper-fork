@@ -47,6 +47,8 @@ public class FollowerZooKeeperServer extends LearnerZooKeeperServer {
 
     /*
      * Pending sync requests
+     *
+     * 用于存放接收到的会话请求
      */ ConcurrentLinkedQueue<Request> pendingSyncs;
 
     /**
