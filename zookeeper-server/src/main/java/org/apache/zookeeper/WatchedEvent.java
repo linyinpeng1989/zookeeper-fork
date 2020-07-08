@@ -28,12 +28,26 @@ import org.apache.zookeeper.proto.WatcherEvent;
  *  is able to respond to.  The WatchedEvent includes exactly what happened,
  *  the current state of the ZooKeeper, and the path of the znode that
  *  was involved in the event.
+ *
+ *  WatchedEvent 是一个逻辑事件，用于服务端和客户端程序执行过程中所需的逻辑对象。
+ *  WatcherEvent 与 WatchedEvent 都是对一个服务端事件的封装，但是 WatcherEvent 实现了序列化接口，可以用于网络传输。
  */
 @InterfaceAudience.Public
 public class WatchedEvent {
 
+    /**
+     * 通知状态
+     */
     private final KeeperState keeperState;
+
+    /**
+     * 事件类型
+     */
     private final EventType eventType;
+
+    /**
+     * 节点路径
+     */
     private String path;
 
     /**

@@ -223,6 +223,11 @@ public interface Watcher {
         }
     }
 
+    /**
+     * 事件回调处理入口
+     *
+     * @param event 事件对象
+     */
     void process(WatchedEvent event);
 
 }
