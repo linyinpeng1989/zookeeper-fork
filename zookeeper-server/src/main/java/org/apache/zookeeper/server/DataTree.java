@@ -521,7 +521,11 @@ public class DataTree {
             updateCountBytes(lastPrefix, bytes, 1);
         }
         updateWriteStat(path, bytes);
+
+        // 触发“当前节点的创建节点”的 Watcher 回调
         dataWatches.triggerWatch(path, Event.EventType.NodeCreated);
+
+        // 触发“当前节点的父节点的子节点变更”的 Watcher 回调
         childWatches.triggerWatch(parentName.equals("") ? "/" : parentName, Event.EventType.NodeChildrenChanged);
     }
 
@@ -618,8 +622,13 @@ public class DataTree {
                 "childWatches.triggerWatch " + parentName);
         }
 
+        // 触发“当前节点的删除节点”的 Watcher 回调
         WatcherOrBitSet processed = dataWatches.triggerWatch(path, EventType.NodeDeleted);
+
+        // 触发“当前节点的子节点变更”的 Watcher 回调
         childWatches.triggerWatch(path, EventType.NodeDeleted, processed);
+
+        // 触发“当前节点的父节点的子节点变更”的 Watcher 回调
         childWatches.triggerWatch("".equals(parentName) ? "/" : parentName, EventType.NodeChildrenChanged);
     }
 
@@ -650,7 +659,7 @@ public class DataTree {
 
         updateWriteStat(path, dataBytes);
 
-        // 触发节点数据变更事件的 Watcher
+        // 触发“当前节点的数据变更”的 Watcher 回调
         dataWatches.triggerWatch(path, EventType.NodeDataChanged);
         return s;
     }
