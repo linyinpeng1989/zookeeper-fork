@@ -174,6 +174,8 @@ public class WatchManager implements IWatchManager {
                 }
             }
         }
+
+        // 如果没有匹配到任何需要触发的 Watcher，直接返回
         if (watchers.isEmpty()) {
             if (LOG.isTraceEnabled()) {
                 ZooTrace.logTraceMessage(LOG, ZooTrace.EVENT_DELIVERY_TRACE_MASK, "No watchers for " + path);
@@ -181,11 +183,12 @@ public class WatchManager implements IWatchManager {
             return null;
         }
 
-        //
+        // 遍历需要触发的 Watcher，并排除需要忽略的 Watcher，然后调用 process() 方法进行回调通知
         for (Watcher w : watchers) {
             if (supress != null && supress.contains(w)) {
                 continue;
             }
+            // 服务端存储的 Watcher 其实是 ServerCnxn 对象，因此这里调用 NIOServerCnxn 或 NettyServerCnxn 的 process() 方法
             w.process(e);
         }
 
