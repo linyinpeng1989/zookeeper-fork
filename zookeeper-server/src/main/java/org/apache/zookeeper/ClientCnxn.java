@@ -529,7 +529,7 @@ public class ClientCnxn {
                 watchers = new HashSet<>(materializedWatchers);
             }
             // queue the pair (watch set & event) for later processing
-            // 建立事件信息及其对应的客户端 Watcher 集合的映射关系
+            // 建立事件及其对应的客户端 Watcher 集合的映射关系
             WatcherSetEventPair pair = new WatcherSetEventPair(watchers, event);
 
             // queue the pair (watch set & event) for later processing
@@ -917,7 +917,7 @@ public class ClientCnxn {
                     eventThread.queueEventOfDeath();
                 }
               return;
-            // 当属性字段 xid = -1 时，表示该请求响应为通知类型
+            // 当属性字段 xid = -1 时，表示该请求响应为通知类型，即 Watcher 回调
             case NOTIFICATION_XID:
                 LOG.debug("Got notification session id: 0x{}",
                     Long.toHexString(sessionId));
@@ -927,7 +927,8 @@ public class ClientCnxn {
                 event.deserialize(bbia, "response");
 
                 // convert from a server path to a client path
-                // 判断客户端是否配置了命名空间，如果客户端配置了 chrootPath 属性，则需要对接收到的节点路径进行 chrootPath 处理
+                // 判断客户端是否配置了命名空间，如果客户端配置了 chrootPath 属性，则需要对接收到的节点路径
+                // 进行 chrootPath 处理，生成客户端的一个相对节点路径
                 if (chrootPath != null) {
                     String serverPath = event.getPath();
                     if (serverPath.compareTo(chrootPath) == 0) {
@@ -940,10 +941,11 @@ public class ClientCnxn {
                      }
                 }
 
+                // 将用于传输的 WatcherEvent 实例转换成 WatchedEvent 实例
                 WatchedEvent we = new WatchedEvent(event);
                 LOG.debug("Got {} for session id 0x{}", we, Long.toHexString(sessionId));
 
-                // 将接收到的事件添加到 EventThread 线程的工作队列，然后等待 EventThread 线程轮询进行处理
+                // 将 WatchedEvent 实例添加到 EventThread 线程的工作队列，然后等待 EventThread 线程轮询进行处理
                 eventThread.queueEvent(we);
                 return;
             default:

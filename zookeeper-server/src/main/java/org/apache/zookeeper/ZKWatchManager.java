@@ -343,6 +343,9 @@ class ZKWatchManager implements ClientWatchManager {
     /* (non-Javadoc)
      * @see org.apache.zookeeper.ClientWatchManager#materialize(Event.KeeperState,
      *                                                        Event.EventType, java.lang.String)
+     *
+     * 根据事件类型 EventType，从相应的 Watcher 存储中去除对应的 Watcher（表明客户端的 Watcher 机制同样也是一次性的），
+     * 并且 remove() 方法返回的 Watcher 实例会添加到返回集合中
      */
     @Override
     public Set<Watcher> materialize(
@@ -402,7 +405,8 @@ class ZKWatchManager implements ClientWatchManager {
         case NodeDataChanged:
         case NodeCreated:
             synchronized (dataWatches) {
-                // 客户端在查询到对应的 Watcher 信息后，会将其从 ZKWatchManager 的管理中删除（客户端的 Watcher 机制是一次性的，触发后就会被删除）
+                // 客户端在查询到对应的 Watcher 信息后，会将其从 ZKWatchManager 的管理中删除（客户端的 Watcher 机制是一次性的，触发后就会被删除），
+                // 并且 remove() 方法返回的 Watcher 实例会添加到返回集合中
                 addTo(dataWatches.remove(clientPath), result);
             }
             synchronized (existWatches) {
