@@ -125,26 +125,41 @@ public class WatchManager implements IWatchManager {
     public WatcherOrBitSet triggerWatch(String path, EventType type, WatcherOrBitSet supress) {
         // 封装 WatchedEvent 对象，它有事件类型、会话状态、节点路径3种属性
         WatchedEvent e = new WatchedEvent(type, KeeperState.SyncConnected, path);
+
+        // 需要触发回调的 Watcher 集合
         Set<Watcher> watchers = new HashSet<>();
+
+        // 根据当前节点路径构造路径迭代器
         PathParentIterator pathParentIterator = getPathParentIterator(path);
         synchronized (this) {
             for (String localPath : pathParentIterator.asIterable()) {
+
+                // 获取节点路径相关的 Watcher 集合
                 Set<Watcher> thisWatchers = watchTable.get(localPath);
                 if (thisWatchers == null || thisWatchers.isEmpty()) {
                     continue;
                 }
+
+                // 遍历节点路径相关的 Watcher 集合
                 Iterator<Watcher> iterator = thisWatchers.iterator();
                 while (iterator.hasNext()) {
                     Watcher watcher = iterator.next();
                     WatcherMode watcherMode = watcherModeManager.getWatcherMode(watcher, localPath);
+                    // 如果需要递归处理，且变更事件不是子节点变更，则添加到 Watcher 集合中
                     if (watcherMode.isRecursive()) {
                         if (type != EventType.NodeChildrenChanged) {
                             watchers.add(watcher);
                         }
-                    } else if (!pathParentIterator.atParentPath()) {
+                    }
+                    // 如果不需要递归处理，且迭代器仍处于初始路径（构造路径迭代器时设置的路径，即当前节点路径）
+                    else if (!pathParentIterator.atParentPath()) {
+                        // 将 watcher 添加到 Watcher 集合中
                         watchers.add(watcher);
                         if (!watcherMode.isPersistent()) {
+                            // 移除 watcher
                             iterator.remove();
+
+                            // 移除 watcher 对应的路径集合中关联的节点路径
                             Set<String> paths = watch2Paths.get(watcher);
                             if (paths != null) {
                                 paths.remove(localPath);
@@ -152,6 +167,8 @@ public class WatchManager implements IWatchManager {
                         }
                     }
                 }
+
+                // 如果 localPath 对应的 thisWatchers 中所有的 Watcher 均被移除，则从 watchTable 中移除
                 if (thisWatchers.isEmpty()) {
                     watchTable.remove(localPath);
                 }
@@ -164,6 +181,7 @@ public class WatchManager implements IWatchManager {
             return null;
         }
 
+        //
         for (Watcher w : watchers) {
             if (supress != null && supress.contains(w)) {
                 continue;
