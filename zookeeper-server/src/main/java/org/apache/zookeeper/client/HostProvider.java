@@ -18,9 +18,10 @@
 
 package org.apache.zookeeper.client;
 
+import org.apache.yetus.audience.InterfaceAudience;
+
 import java.net.InetSocketAddress;
 import java.util.Collection;
-import org.apache.yetus.audience.InterfaceAudience;
 
 /**
  * A set of hosts a ZooKeeper client should connect to.
@@ -41,6 +42,8 @@ import org.apache.yetus.audience.InterfaceAudience;
  * * A HostProvider that loads the list of Hosts from an URL or from DNS
  * * A HostProvider that re-resolves the InetSocketAddress after a timeout.
  * * A HostProvider that prefers nearby hosts.
+ *
+ * 服务器地址列表管理器
  */
 @InterfaceAudience.Public
 public interface HostProvider {

@@ -595,7 +595,7 @@ public class ZooKeeper implements AutoCloseable {
         this.hostProvider = hostProvider;
         ConnectStringParser connectStringParser = new ConnectStringParser(connectString);
 
-        // 创建 ClientCnxn 实例，主要负责与服务端之间的通信
+        // 创建 ClientCnxn 线程并启动，该线程主要负责与服务端之间的通信
         cnxn = createConnection(
             connectStringParser.getChrootPath(),
             hostProvider,

@@ -64,19 +64,19 @@ import java.util.concurrent.LinkedBlockingQueue;
  * This class manages the socket i/o for the client. ClientCnxn maintains a list
  * of available servers to connect to and "transparently" switches servers it is
  * connected to as needed.
- *
+ * <p>
  * Client端的核心实现：负责客户端和服务器之间的通信，主要包括两个主要成员SendThread和EventThread。
- *
+ * <p>
  * SendThread：
- *  1. 断连重试
- *  2. 心跳检测
- *  3. IO读写
- *
+ * 1. 断连重试
+ * 2. 心跳检测
+ * 3. IO读写
+ * <p>
  * EventThread：
- *  1. 事件处理
- *      1.1. 关闭事件 EventOfDeeath
- *      1.2. WatcherEvent
- *      1.3. 常规请求响应 Packet
+ * 1. 事件处理
+ * 1.1. 关闭事件 EventOfDeeath
+ * 1.2. WatcherEvent
+ * 1.3. 常规请求响应 Packet
  */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public class ClientCnxn {
@@ -123,14 +123,14 @@ public class ClientCnxn {
 
     /**
      * These are the packets that have been sent and are waiting for a response.
-     *
+     * <p>
      * 请求响应队列
      */
     private final Queue<Packet> pendingQueue = new ArrayDeque<>();
 
     /**
      * These are the packets that need to be sent.
-     *
+     * <p>
      * 请求发送队列
      */
     private final LinkedBlockingDeque<Packet> outgoingQueue = new LinkedBlockingDeque<Packet>();
@@ -168,16 +168,16 @@ public class ClientCnxn {
     /**
      * SendThread 类本质是一个 I/O 调度线程，用来管理操作客户端和服务端的网络 I/O 等。在 ZooKeeper 服务的运行过程中，
      * SendThread 主要由两个作用：
-     *      1. 轮询地从 outgoingQueue 队列中获取 ZooKeeper 塞入的 Packet 包，并通过 ClientCnxnSocketNIO 发送给服务器，
+     * 1. 轮询地从 outgoingQueue 队列中获取 ZooKeeper 塞入的 Packet 包，并通过 ClientCnxnSocketNIO 发送给服务器，
      * 并把发送的 Packet 塞入 pendingQueue 队列中等待服务端的 response ,同时也从同服务端建立的管道中读取 response
      * 并把相应的 Packet 移出 pendingQueue ,放入 EventThrad 负责处理的 waitingEvents 队列中。
-     *      2. SendThread也负责和集群连接的建立、断开和session的ping连接。
+     * 2. SendThread也负责和集群连接的建立、断开和session的ping连接。
      */
     final SendThread sendThread;
 
     /**
      * EventThread 类主要负责客户端的事件处理，比如在客户端接收 Watch 通知时，触发客户端的相关方法。
-     *      1. 负责处理 waitingEvent 队列中的 Packet,把 Packet 中finished标识为true，使得阻塞的客户端函数返回并且取得 Packet
+     * 1. 负责处理 waitingEvent 队列中的 Packet,把 Packet 中finished标识为true，使得阻塞的客户端函数返回并且取得 Packet
      * 中的response,根据不同的response调用不同的回调实现方法处理事件，其中 waitingEvent 队列采用LinkedBlockingQueue
      */
     final EventThread eventThread;
@@ -242,22 +242,22 @@ public class ClientCnxn {
         SocketAddress local = sendThread.getClientCnxnSocket().getLocalSocketAddress();
         SocketAddress remote = sendThread.getClientCnxnSocket().getRemoteSocketAddress();
         sb.append("sessionid:0x").append(Long.toHexString(getSessionId()))
-          .append(" local:").append(local)
-          .append(" remoteserver:").append(remote)
-          .append(" lastZxid:").append(lastZxid)
-          .append(" xid:").append(xid)
-          .append(" sent:").append(sendThread.getClientCnxnSocket().getSentCount())
-          .append(" recv:").append(sendThread.getClientCnxnSocket().getRecvCount())
-          .append(" queuedpkts:").append(outgoingQueue.size())
-          .append(" pendingresp:").append(pendingQueue.size())
-          .append(" queuedevents:").append(eventThread.waitingEvents.size());
+                .append(" local:").append(local)
+                .append(" remoteserver:").append(remote)
+                .append(" lastZxid:").append(lastZxid)
+                .append(" xid:").append(xid)
+                .append(" sent:").append(sendThread.getClientCnxnSocket().getSentCount())
+                .append(" recv:").append(sendThread.getClientCnxnSocket().getRecvCount())
+                .append(" queuedpkts:").append(outgoingQueue.size())
+                .append(" pendingresp:").append(pendingQueue.size())
+                .append(" queuedevents:").append(eventThread.waitingEvents.size());
 
         return sb.toString();
     }
 
     /**
      * This class allows us to pass the headers and the relevant records around.
-     *
+     * <p>
      * Packet 是 ZooKeeper 中用来进行网络通信的数据结构，主要作用是封装了网络通信协议层的数据
      */
     static class Packet {
@@ -286,13 +286,13 @@ public class ClientCnxn {
 
         /**
          * Client's view of the path (may differ due to chroot)
-         *
+         * <p>
          * 节点路径
          */
         String clientPath;
         /**
          * Servers's view of the path (may differ due to chroot)
-         *
+         * <p>
          * 服务器地址
          */
         String serverPath;
@@ -309,23 +309,25 @@ public class ClientCnxn {
 
         WatchDeregistration watchDeregistration;
 
-        /** Convenience ctor */
+        /**
+         * Convenience ctor
+         */
         Packet(
-            RequestHeader requestHeader,
-            ReplyHeader replyHeader,
-            Record request,
-            Record response,
-            WatchRegistration watchRegistration) {
+                RequestHeader requestHeader,
+                ReplyHeader replyHeader,
+                Record request,
+                Record response,
+                WatchRegistration watchRegistration) {
             this(requestHeader, replyHeader, request, response, watchRegistration, false);
         }
 
         Packet(
-            RequestHeader requestHeader,
-            ReplyHeader replyHeader,
-            Record request,
-            Record response,
-            WatchRegistration watchRegistration,
-            boolean readOnly) {
+                RequestHeader requestHeader,
+                ReplyHeader replyHeader,
+                Record request,
+                Record response,
+                WatchRegistration watchRegistration,
+                boolean readOnly) {
 
             this.requestHeader = requestHeader;
             this.replyHeader = replyHeader;
@@ -337,7 +339,7 @@ public class ClientCnxn {
 
         /**
          * 将 Packet 对象的数据进行序列化，以便用于网络传输
-         *
+         * <p>
          * 只是对请求头信息（requestHeader）、请求体信息（request）、只读（readOnly）这三个属性字段进行序列化
          */
         public void createBB() {
@@ -388,33 +390,33 @@ public class ClientCnxn {
      * established until needed. The start() instance method must be called
      * subsequent to construction.
      *
-     * @param chrootPath the chroot of this client. Should be removed from this Class in ZOOKEEPER-838
-     * @param hostProvider the list of ZooKeeper servers to connect to
-     * @param sessionTimeout the timeout for connections.
-     * @param clientConfig the client configuration.
-     * @param defaultWatcher default watcher for this connection
+     * @param chrootPath       the chroot of this client. Should be removed from this Class in ZOOKEEPER-838
+     * @param hostProvider     the list of ZooKeeper servers to connect to
+     * @param sessionTimeout   the timeout for connections.
+     * @param clientConfig     the client configuration.
+     * @param defaultWatcher   default watcher for this connection
      * @param clientCnxnSocket the socket implementation used (e.g. NIO/Netty)
-     * @param canBeReadOnly whether the connection is allowed to go to read-only mode in case of partitioning
+     * @param canBeReadOnly    whether the connection is allowed to go to read-only mode in case of partitioning
      */
     public ClientCnxn(
-        String chrootPath,
-        HostProvider hostProvider,
-        int sessionTimeout,
-        ZKClientConfig clientConfig,
-        Watcher defaultWatcher,
-        ClientCnxnSocket clientCnxnSocket,
-        boolean canBeReadOnly
+            String chrootPath,
+            HostProvider hostProvider,
+            int sessionTimeout,
+            ZKClientConfig clientConfig,
+            Watcher defaultWatcher,
+            ClientCnxnSocket clientCnxnSocket,
+            boolean canBeReadOnly
     ) throws IOException {
         this(
-            chrootPath,
-            hostProvider,
-            sessionTimeout,
-            clientConfig,
-            defaultWatcher,
-            clientCnxnSocket,
-            0,
-            new byte[16],
-            canBeReadOnly);
+                chrootPath,
+                hostProvider,
+                sessionTimeout,
+                clientConfig,
+                defaultWatcher,
+                clientCnxnSocket,
+                0,
+                new byte[16],
+                canBeReadOnly);
     }
 
     /**
@@ -422,27 +424,27 @@ public class ClientCnxn {
      * established until needed. The start() instance method must be called
      * subsequent to construction.
      *
-     * @param chrootPath the chroot of this client. Should be removed from this Class in ZOOKEEPER-838
-     * @param hostProvider the list of ZooKeeper servers to connect to
-     * @param sessionTimeout the timeout for connections.
-     * @param clientConfig the client configuration.
-     * @param defaultWatcher default watcher for this connection
+     * @param chrootPath       the chroot of this client. Should be removed from this Class in ZOOKEEPER-838
+     * @param hostProvider     the list of ZooKeeper servers to connect to
+     * @param sessionTimeout   the timeout for connections.
+     * @param clientConfig     the client configuration.
+     * @param defaultWatcher   default watcher for this connection
      * @param clientCnxnSocket the socket implementation used (e.g. NIO/Netty)
-     * @param sessionId session id if re-establishing session
-     * @param sessionPasswd session passwd if re-establishing session
-     * @param canBeReadOnly whether the connection is allowed to go to read-only mode in case of partitioning
+     * @param sessionId        session id if re-establishing session
+     * @param sessionPasswd    session passwd if re-establishing session
+     * @param canBeReadOnly    whether the connection is allowed to go to read-only mode in case of partitioning
      * @throws IOException in cases of broken network
      */
     public ClientCnxn(
-        String chrootPath,
-        HostProvider hostProvider,
-        int sessionTimeout,
-        ZKClientConfig clientConfig,
-        Watcher defaultWatcher,
-        ClientCnxnSocket clientCnxnSocket,
-        long sessionId,
-        byte[] sessionPasswd,
-        boolean canBeReadOnly
+            String chrootPath,
+            HostProvider hostProvider,
+            int sessionTimeout,
+            ZKClientConfig clientConfig,
+            Watcher defaultWatcher,
+            ClientCnxnSocket clientCnxnSocket,
+            long sessionId,
+            byte[] sessionPasswd,
+            boolean canBeReadOnly
     ) throws IOException {
         this.chrootPath = chrootPath;
         this.hostProvider = hostProvider;
@@ -452,6 +454,7 @@ public class ClientCnxn {
         this.sessionPasswd = sessionPasswd;
         this.readOnly = canBeReadOnly;
 
+        // 创建客户端 ZKWatchManager 实例，并设置默认的 Watcher
         this.watchManager = new ZKWatchManager(
                 clientConfig.getBoolean(ZKClientConfig.DISABLE_AUTO_WATCH_RESET),
                 defaultWatcher);
@@ -459,6 +462,7 @@ public class ClientCnxn {
         this.connectTimeout = sessionTimeout / hostProvider.size();
         this.readTimeout = sessionTimeout * 2 / 3;
 
+        // 创建 SendThread 和 EventThread 两个线程
         this.sendThread = new SendThread(clientCnxnSocket);
         this.eventThread = new EventThread();
         initRequestTimeout();
@@ -497,7 +501,8 @@ public class ClientCnxn {
 
         private final LinkedBlockingQueue<Object> waitingEvents = new LinkedBlockingQueue<Object>();
 
-        /** This is really the queued session state until the event
+        /**
+         * This is really the queued session state until the event
          * thread actually processes the event and hands it to the watcher.
          * But for all intents and purposes this is the state.
          */
@@ -633,8 +638,8 @@ public class ClientCnxn {
                     if (p.cb == null) {
                         LOG.warn("Somehow a null cb got to EventThread!");
                     } else if (p.response instanceof ExistsResponse
-                               || p.response instanceof SetDataResponse
-                               || p.response instanceof SetACLResponse) {
+                            || p.response instanceof SetDataResponse
+                            || p.response instanceof SetACLResponse) {
                         StatCallback cb = (StatCallback) p.cb;
                         if (rc == 0) {
                             if (p.response instanceof ExistsResponse) {
@@ -692,12 +697,12 @@ public class ClientCnxn {
                         CreateResponse rsp = (CreateResponse) p.response;
                         if (rc == 0) {
                             cb.processResult(
-                                rc,
-                                clientPath,
-                                p.ctx,
-                                (chrootPath == null
-                                    ? rsp.getPath()
-                                    : rsp.getPath().substring(chrootPath.length())));
+                                    rc,
+                                    clientPath,
+                                    p.ctx,
+                                    (chrootPath == null
+                                            ? rsp.getPath()
+                                            : rsp.getPath().substring(chrootPath.length())));
                         } else {
                             cb.processResult(rc, clientPath, p.ctx, null);
                         }
@@ -724,8 +729,8 @@ public class ClientCnxn {
                             int newRc = rc;
                             for (OpResult result : results) {
                                 if (result instanceof ErrorResult
-                                    && KeeperException.Code.OK.intValue()
-                                       != (newRc = ((ErrorResult) result).getErr())) {
+                                        && KeeperException.Code.OK.intValue()
+                                        != (newRc = ((ErrorResult) result).getErr())) {
                                     break;
                                 }
                             }
@@ -795,7 +800,7 @@ public class ClientCnxn {
     void queueEvent(String clientPath, int err, Set<Watcher> materializedWatchers, EventType eventType) {
         KeeperState sessionState = KeeperState.SyncConnected;
         if (KeeperException.Code.SESSIONEXPIRED.intValue() == err
-            || KeeperException.Code.CONNECTIONLOSS.intValue() == err) {
+                || KeeperException.Code.CONNECTIONLOSS.intValue() == err) {
             sessionState = Event.KeeperState.Disconnected;
         }
         WatchedEvent event = new WatchedEvent(eventType, sessionState, clientPath);
@@ -816,14 +821,14 @@ public class ClientCnxn {
             return;
         }
         switch (state) {
-        case AUTH_FAILED:
-            p.replyHeader.setErr(KeeperException.Code.AUTHFAILED.intValue());
-            break;
-        case CLOSED:
-            p.replyHeader.setErr(KeeperException.Code.SESSIONEXPIRED.intValue());
-            break;
-        default:
-            p.replyHeader.setErr(KeeperException.Code.CONNECTIONLOSS.intValue());
+            case AUTH_FAILED:
+                p.replyHeader.setErr(KeeperException.Code.AUTHFAILED.intValue());
+                break;
+            case CLOSED:
+                p.replyHeader.setErr(KeeperException.Code.SESSIONEXPIRED.intValue());
+                break;
+            default:
+                p.replyHeader.setErr(KeeperException.Code.CONNECTIONLOSS.intValue());
         }
         finishPacket(p);
     }
@@ -903,53 +908,53 @@ public class ClientCnxn {
             // 反序列化服务器发送的请求头信息
             replyHdr.deserialize(bbia, "header");
             switch (replyHdr.getXid()) {
-            case PING_XID:
-                LOG.debug("Got ping response for session id: 0x{} after {}ms.",
-                    Long.toHexString(sessionId),
-                    ((System.nanoTime() - lastPingSentNs) / 1000000));
-                return;
-              case AUTHPACKET_XID:
-                LOG.debug("Got auth session id: 0x{}", Long.toHexString(sessionId));
-                if (replyHdr.getErr() == KeeperException.Code.AUTHFAILED.intValue()) {
-                    changeZkState(States.AUTH_FAILED);
-                    eventThread.queueEvent(new WatchedEvent(Watcher.Event.EventType.None,
-                        Watcher.Event.KeeperState.AuthFailed, null));
-                    eventThread.queueEventOfDeath();
-                }
-              return;
-            // 当属性字段 xid = -1 时，表示该请求响应为通知类型，即 Watcher 回调
-            case NOTIFICATION_XID:
-                LOG.debug("Got notification session id: 0x{}",
-                    Long.toHexString(sessionId));
+                case PING_XID:
+                    LOG.debug("Got ping response for session id: 0x{} after {}ms.",
+                            Long.toHexString(sessionId),
+                            ((System.nanoTime() - lastPingSentNs) / 1000000));
+                    return;
+                case AUTHPACKET_XID:
+                    LOG.debug("Got auth session id: 0x{}", Long.toHexString(sessionId));
+                    if (replyHdr.getErr() == KeeperException.Code.AUTHFAILED.intValue()) {
+                        changeZkState(States.AUTH_FAILED);
+                        eventThread.queueEvent(new WatchedEvent(Watcher.Event.EventType.None,
+                                Watcher.Event.KeeperState.AuthFailed, null));
+                        eventThread.queueEventOfDeath();
+                    }
+                    return;
+                // 当属性字段 xid = -1 时，表示该请求响应为通知类型，即 Watcher 回调
+                case NOTIFICATION_XID:
+                    LOG.debug("Got notification session id: 0x{}",
+                            Long.toHexString(sessionId));
 
-                // 将已收到的字节流反序列化，转换成 WatcherEvent 对象
-                WatcherEvent event = new WatcherEvent();
-                event.deserialize(bbia, "response");
+                    // 将已收到的字节流反序列化，转换成 WatcherEvent 对象
+                    WatcherEvent event = new WatcherEvent();
+                    event.deserialize(bbia, "response");
 
-                // convert from a server path to a client path
-                // 判断客户端是否配置了命名空间，如果客户端配置了 chrootPath 属性，则需要对接收到的节点路径
-                // 进行 chrootPath 处理，生成客户端的一个相对节点路径
-                if (chrootPath != null) {
-                    String serverPath = event.getPath();
-                    if (serverPath.compareTo(chrootPath) == 0) {
-                        event.setPath("/");
-                    } else if (serverPath.length() > chrootPath.length()) {
-                        event.setPath(serverPath.substring(chrootPath.length()));
-                     } else {
-                         LOG.warn("Got server path {} which is too short for chroot path {}.",
-                             event.getPath(), chrootPath);
-                     }
-                }
+                    // convert from a server path to a client path
+                    // 判断客户端是否配置了命名空间，如果客户端配置了 chrootPath 属性，则需要对接收到的节点路径
+                    // 进行 chrootPath 处理，生成客户端的一个相对节点路径
+                    if (chrootPath != null) {
+                        String serverPath = event.getPath();
+                        if (serverPath.compareTo(chrootPath) == 0) {
+                            event.setPath("/");
+                        } else if (serverPath.length() > chrootPath.length()) {
+                            event.setPath(serverPath.substring(chrootPath.length()));
+                        } else {
+                            LOG.warn("Got server path {} which is too short for chroot path {}.",
+                                    event.getPath(), chrootPath);
+                        }
+                    }
 
-                // 将用于传输的 WatcherEvent 实例转换成 WatchedEvent 实例
-                WatchedEvent we = new WatchedEvent(event);
-                LOG.debug("Got {} for session id 0x{}", we, Long.toHexString(sessionId));
+                    // 将用于传输的 WatcherEvent 实例转换成 WatchedEvent 实例
+                    WatchedEvent we = new WatchedEvent(event);
+                    LOG.debug("Got {} for session id 0x{}", we, Long.toHexString(sessionId));
 
-                // 将 WatchedEvent 实例添加到 EventThread 线程的工作队列，然后等待 EventThread 线程轮询进行处理
-                eventThread.queueEvent(we);
-                return;
-            default:
-                break;
+                    // 将 WatchedEvent 实例添加到 EventThread 线程的工作队列，然后等待 EventThread 线程轮询进行处理
+                    eventThread.queueEvent(we);
+                    return;
+                default:
+                    break;
             }
 
             // If SASL authentication is currently in progress, construct and
@@ -977,9 +982,9 @@ public class ClientCnxn {
                 if (packet.requestHeader.getXid() != replyHdr.getXid()) {
                     packet.replyHeader.setErr(KeeperException.Code.CONNECTIONLOSS.intValue());
                     throw new IOException("Xid out of order. Got Xid " + replyHdr.getXid()
-                                          + " with err " + replyHdr.getErr()
-                                          + " expected Xid " + packet.requestHeader.getXid()
-                                          + " for a packet with details: " + packet);
+                            + " with err " + replyHdr.getErr()
+                            + " expected Xid " + packet.requestHeader.getXid()
+                            + " for a packet with details: " + packet);
                 }
 
                 packet.replyHeader.setXid(replyHdr.getXid());
@@ -1009,6 +1014,7 @@ public class ClientCnxn {
         // already exists
         // It would be cleaner to make class SendThread an implementation of
         // Runnable
+
         /**
          * Used by ClientCnxnSocket
          *
@@ -1036,11 +1042,12 @@ public class ClientCnxn {
          */
         void primeConnection() throws IOException {
             LOG.info(
-                "Socket connection established, initiating session, client: {}, server: {}",
-                clientCnxnSocket.getLocalSocketAddress(),
-                clientCnxnSocket.getRemoteSocketAddress());
+                    "Socket connection established, initiating session, client: {}, server: {}",
+                    clientCnxnSocket.getLocalSocketAddress(),
+                    clientCnxnSocket.getRemoteSocketAddress());
             isFirstConnect = false;
             long sessId = (seenRwServerBefore) ? sessionId : 0;
+            // 构造会话创建请求
             ConnectRequest conReq = new ConnectRequest(0, lastZxid, sessionTimeout, sessId, sessionPasswd);
             // We add backwards since we are pushing into the front
             // Only send if there's a pending watch
@@ -1081,7 +1088,7 @@ public class ClientCnxn {
                             } else if (childWatchesIter.hasNext()) {
                                 watch = childWatchesIter.next();
                                 childWatchesBatch.add(watch);
-                            }  else if (persistentWatchesIter.hasNext()) {
+                            } else if (persistentWatchesIter.hasNext()) {
                                 watch = persistentWatchesIter.next();
                                 persistentWatchesBatch.add(watch);
                             } else if (persistentRecursiveWatchesIter.hasNext()) {
@@ -1114,12 +1121,12 @@ public class ClientCnxn {
 
             for (AuthData id : authInfo) {
                 outgoingQueue.addFirst(
-                    new Packet(
-                        new RequestHeader(ClientCnxn.AUTHPACKET_XID, OpCode.auth),
-                        null,
-                        new AuthPacket(0, id.scheme, id.data),
-                        null,
-                        null));
+                        new Packet(
+                                new RequestHeader(ClientCnxn.AUTHPACKET_XID, OpCode.auth),
+                                null,
+                                new AuthPacket(0, id.scheme, id.data),
+                                null,
+                                null));
             }
             outgoingQueue.addFirst(new Packet(null, null, conReq, null, null, readOnly));
             clientCnxnSocket.connectionPrimed();
@@ -1165,6 +1172,12 @@ public class ClientCnxn {
         // throws a LoginException: see startConnect() below.
         private boolean saslLoginFailed = false;
 
+        /**
+         * 与 ZooKeeper 服务器建立 TCP 长连接
+         *
+         * @param addr
+         * @throws IOException
+         */
         private void startConnect(InetSocketAddress addr) throws IOException {
             // initializing it for new connection
             saslLoginFailed = false;
@@ -1192,15 +1205,16 @@ public class ClientCnxn {
                     // This is different from an authentication error that occurs during communication
                     // with the Zookeeper server, which is handled below.
                     LOG.warn(
-                        "SASL configuration failed. "
-                            + "Will continue connection to Zookeeper server without "
-                            + "SASL authentication, if Zookeeper server allows it.", e);
+                            "SASL configuration failed. "
+                                    + "Will continue connection to Zookeeper server without "
+                                    + "SASL authentication, if Zookeeper server allows it.", e);
                     eventThread.queueEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.AuthFailed, null));
                     saslLoginFailed = true;
                 }
             }
             logStartConnect(addr);
 
+            // 通过 ClientCnxnSocket I/O 处理器，创建 TCP 长连接
             clientCnxnSocket.connect(addr);
         }
 
@@ -1222,6 +1236,7 @@ public class ClientCnxn {
             InetSocketAddress serverAddress = null;
             while (state.isAlive()) {
                 try {
+                    // 如果还未创建会话的情况下
                     if (!clientCnxnSocket.isConnected()) {
                         // don't re-establish connection if we are closing
                         if (closing) {
@@ -1231,10 +1246,11 @@ public class ClientCnxn {
                             serverAddress = rwServerAddress;
                             rwServerAddress = null;
                         } else {
+                            // 从服务器地址列表管理器中，随机获取一个服务器地址
                             serverAddress = hostProvider.next(1000);
                         }
                         onConnecting(serverAddress);
-                        // 开始建立连接，TCP层创建 Socket
+                        // 开始建立连接，创建 TCP 长连接
                         startConnect(serverAddress);
                         clientCnxnSocket.updateLastSendAndHeard();
                     }
@@ -1279,9 +1295,9 @@ public class ClientCnxn {
 
                     if (to <= 0) {
                         String warnInfo = String.format(
-                            "Client session timed out, have not heard from server in %dms for session id 0x%s",
-                            clientCnxnSocket.getIdleRecv(),
-                            Long.toHexString(sessionId));
+                                "Client session timed out, have not heard from server in %dms for session id 0x%s",
+                                clientCnxnSocket.getIdleRecv(),
+                                Long.toHexString(sessionId));
                         LOG.warn(warnInfo);
                         throw new SessionTimeoutException(warnInfo);
                     }
@@ -1289,8 +1305,8 @@ public class ClientCnxn {
                         //1000(1 second) is to prevent race condition missing to send the second ping
                         //also make sure not to send too many pings when readTimeout is small
                         int timeToNextPing = readTimeout / 2
-                                             - clientCnxnSocket.getIdleSend()
-                                             - ((clientCnxnSocket.getIdleSend() > 1000) ? 1000 : 0);
+                                - clientCnxnSocket.getIdleSend()
+                                - ((clientCnxnSocket.getIdleSend() > 1000) ? 1000 : 0);
                         //send a ping request either time is due or no packet sent out within MAX_SEND_PING_INTERVAL
                         if (timeToNextPing <= 0 || clientCnxnSocket.getIdleSend() > MAX_SEND_PING_INTERVAL) {
                             sendPing();
@@ -1320,17 +1336,17 @@ public class ClientCnxn {
                     if (closing) {
                         // closing so this is expected
                         LOG.warn(
-                            "An exception was thrown while closing send thread for session 0x{}.",
-                            Long.toHexString(getSessionId()),
-                            e);
+                                "An exception was thrown while closing send thread for session 0x{}.",
+                                Long.toHexString(getSessionId()),
+                                e);
                         break;
                     } else {
                         LOG.warn(
-                            "Session 0x{} for sever {}, Closing socket connection. "
-                                + "Attempting reconnect except it is a SessionExpiredException.",
-                            Long.toHexString(getSessionId()),
-                            serverAddress,
-                            e);
+                                "Session 0x{} for sever {}, Closing socket connection. "
+                                        + "Attempting reconnect except it is a SessionExpiredException.",
+                                Long.toHexString(getSessionId()),
+                                serverAddress,
+                                e);
 
                         // At this point, there might still be new packets appended to outgoingQueue.
                         // they will be handled in next connection or cleared up if closed.
@@ -1350,9 +1366,9 @@ public class ClientCnxn {
             }
             eventThread.queueEvent(new WatchedEvent(Event.EventType.None, Event.KeeperState.Closed, null));
             ZooTrace.logTraceMessage(
-                LOG,
-                ZooTrace.getTextTraceLevel(),
-                "SendThread exited loop for session: 0x" + Long.toHexString(getSessionId()));
+                    LOG,
+                    ZooTrace.getTextTraceLevel(),
+                    "SendThread exited loop for session: 0x" + Long.toHexString(getSessionId()));
         }
 
         private void cleanAndNotifyState() {
@@ -1410,7 +1426,7 @@ public class ClientCnxn {
                 // connection attempt
                 rwServerAddress = addr;
                 throw new RWServerFoundException("Majority server found at "
-                                                 + addr.getHostString() + ":" + addr.getPort());
+                        + addr.getHostString() + ":" + addr.getPort());
             }
         }
 
@@ -1444,10 +1460,10 @@ public class ClientCnxn {
          * @throws IOException
          */
         void onConnected(
-            int _negotiatedSessionTimeout,
-            long _sessionId,
-            byte[] _sessionPasswd,
-            boolean isRO) throws IOException {
+                int _negotiatedSessionTimeout,
+                long _sessionId,
+                byte[] _sessionPasswd,
+                boolean isRO) throws IOException {
             negotiatedSessionTimeout = _negotiatedSessionTimeout;
             if (negotiatedSessionTimeout <= 0) {
                 changeZkState(States.CLOSED);
@@ -1456,8 +1472,8 @@ public class ClientCnxn {
                 eventThread.queueEventOfDeath();
 
                 String warnInfo = String.format(
-                    "Unable to reconnect to ZooKeeper service, session 0x%s has expired",
-                    Long.toHexString(sessionId));
+                        "Unable to reconnect to ZooKeeper service, session 0x%s has expired",
+                        Long.toHexString(sessionId));
                 LOG.warn(warnInfo);
                 throw new SessionExpiredException(warnInfo);
             }
@@ -1474,11 +1490,11 @@ public class ClientCnxn {
             changeZkState((isRO) ? States.CONNECTEDREADONLY : States.CONNECTED);
             seenRwServerBefore |= !isRO;
             LOG.info(
-                "Session establishment complete on server {}, session id = 0x{}, negotiated timeout = {}{}",
-                clientCnxnSocket.getRemoteSocketAddress(),
-                Long.toHexString(sessionId),
-                negotiatedSessionTimeout,
-                (isRO ? " (READ-ONLY mode)" : ""));
+                    "Session establishment complete on server {}, session id = 0x{}, negotiated timeout = {}{}",
+                    clientCnxnSocket.getRemoteSocketAddress(),
+                    Long.toHexString(sessionId),
+                    negotiatedSessionTimeout,
+                    (isRO ? " (READ-ONLY mode)" : ""));
             KeeperState eventState = (isRO) ? KeeperState.ConnectedReadOnly : KeeperState.SyncConnected;
             eventThread.queueEvent(new WatchedEvent(Watcher.Event.EventType.None, eventState, null));
         }
@@ -1587,32 +1603,32 @@ public class ClientCnxn {
     }
 
     public ReplyHeader submitRequest(
-        RequestHeader h,
-        Record request,
-        Record response,
-        WatchRegistration watchRegistration) throws InterruptedException {
+            RequestHeader h,
+            Record request,
+            Record response,
+            WatchRegistration watchRegistration) throws InterruptedException {
         return submitRequest(h, request, response, watchRegistration, null);
     }
 
     public ReplyHeader submitRequest(
-        RequestHeader h,
-        Record request,
-        Record response,
-        WatchRegistration watchRegistration,
-        WatchDeregistration watchDeregistration) throws InterruptedException {
+            RequestHeader h,
+            Record request,
+            Record response,
+            WatchRegistration watchRegistration,
+            WatchDeregistration watchDeregistration) throws InterruptedException {
         ReplyHeader r = new ReplyHeader();
         // 将请求封装成 Packet 对象，并添加到一个等待发送队列 outgoingQueue 中
         Packet packet = queuePacket(
-            h,
-            r,
-            request,
-            response,
-            null,
-            null,
-            null,
-            null,
-            watchRegistration,
-            watchDeregistration);
+                h,
+                r,
+                request,
+                response,
+                null,
+                null,
+                null,
+                null,
+                watchRegistration,
+                watchDeregistration);
         synchronized (packet) {
             if (requestTimeout > 0) {
                 // Wait for request completion with timeout
@@ -1668,29 +1684,29 @@ public class ClientCnxn {
     }
 
     public Packet queuePacket(
-        RequestHeader h,
-        ReplyHeader r,
-        Record request,
-        Record response,
-        AsyncCallback cb,
-        String clientPath,
-        String serverPath,
-        Object ctx,
-        WatchRegistration watchRegistration) {
+            RequestHeader h,
+            ReplyHeader r,
+            Record request,
+            Record response,
+            AsyncCallback cb,
+            String clientPath,
+            String serverPath,
+            Object ctx,
+            WatchRegistration watchRegistration) {
         return queuePacket(h, r, request, response, cb, clientPath, serverPath, ctx, watchRegistration, null);
     }
 
     public Packet queuePacket(
-        RequestHeader h,
-        ReplyHeader r,
-        Record request,
-        Record response,
-        AsyncCallback cb,
-        String clientPath,
-        String serverPath,
-        Object ctx,
-        WatchRegistration watchRegistration,
-        WatchDeregistration watchDeregistration) {
+            RequestHeader h,
+            ReplyHeader r,
+            Record request,
+            Record response,
+            AsyncCallback cb,
+            String clientPath,
+            String serverPath,
+            Object ctx,
+            WatchRegistration watchRegistration,
+            WatchDeregistration watchDeregistration) {
         Packet packet = null;
 
         // Note that we do not generate the Xid for the packet yet. It is
@@ -1737,15 +1753,15 @@ public class ClientCnxn {
         authInfo.add(new AuthData(scheme, auth));
         // 将请求封装成 Packet 对象，并添加到一个等待发送队列 outgoingQueue 中
         queuePacket(
-            new RequestHeader(ClientCnxn.AUTHPACKET_XID, OpCode.auth),  // xid = -4，type = 100 表示授权请求头
-            null,
-            new AuthPacket(0, scheme, auth),   // 将 scheme 和 auth 封装成 AuthPacket 类
-            null,
-            null,
-            null,
-            null,
-            null,
-            null);
+                new RequestHeader(ClientCnxn.AUTHPACKET_XID, OpCode.auth),  // xid = -4，type = 100 表示授权请求头
+                null,
+                new AuthPacket(0, scheme, auth),   // 将 scheme 和 auth 封装成 AuthPacket 类
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
     States getState() {
@@ -1771,18 +1787,18 @@ public class ClientCnxn {
     private void initRequestTimeout() {
         try {
             requestTimeout = clientConfig.getLong(
-                ZKClientConfig.ZOOKEEPER_REQUEST_TIMEOUT,
-                ZKClientConfig.ZOOKEEPER_REQUEST_TIMEOUT_DEFAULT);
+                    ZKClientConfig.ZOOKEEPER_REQUEST_TIMEOUT,
+                    ZKClientConfig.ZOOKEEPER_REQUEST_TIMEOUT_DEFAULT);
             LOG.info(
-                "{} value is {}. feature enabled={}",
-                ZKClientConfig.ZOOKEEPER_REQUEST_TIMEOUT,
-                requestTimeout,
-                requestTimeout > 0);
+                    "{} value is {}. feature enabled={}",
+                    ZKClientConfig.ZOOKEEPER_REQUEST_TIMEOUT,
+                    requestTimeout,
+                    requestTimeout > 0);
         } catch (NumberFormatException e) {
             LOG.error(
-                "Configured value {} for property {} can not be parsed to long.",
-                clientConfig.getProperty(ZKClientConfig.ZOOKEEPER_REQUEST_TIMEOUT),
-                ZKClientConfig.ZOOKEEPER_REQUEST_TIMEOUT);
+                    "Configured value {} for property {} can not be parsed to long.",
+                    clientConfig.getProperty(ZKClientConfig.ZOOKEEPER_REQUEST_TIMEOUT),
+                    ZKClientConfig.ZOOKEEPER_REQUEST_TIMEOUT);
             throw e;
         }
     }
