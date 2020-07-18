@@ -1128,6 +1128,7 @@ public class ClientCnxn {
                                 null,
                                 null));
             }
+            // 将创建会话请求放入待发送请求队列中，并且排在第一位
             outgoingQueue.addFirst(new Packet(null, null, conReq, null, null, readOnly));
             clientCnxnSocket.connectionPrimed();
             LOG.debug("Session establishment request sent on {}", clientCnxnSocket.getRemoteSocketAddress());
