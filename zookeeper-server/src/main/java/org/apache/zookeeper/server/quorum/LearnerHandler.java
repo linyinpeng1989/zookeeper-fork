@@ -666,6 +666,7 @@ public class LearnerHandler extends ZooKeeperThread {
                     syncLimitCheck.updateAck(qp.getZxid());
                     learnerMaster.processAck(this.sid, qp.getZxid(), sock.getLocalSocketAddress());
                     break;
+                // 处理客户端 Ping 请求，进行会话激活
                 case Leader.PING:
                     // Process the touches
                     ByteArrayInputStream bis = new ByteArrayInputStream(qp.getData());

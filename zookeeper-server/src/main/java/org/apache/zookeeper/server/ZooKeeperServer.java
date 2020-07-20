@@ -563,6 +563,11 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         hzxid.set(zxid);
     }
 
+    /**
+     * 发送清理节点的请求
+     *
+     * @param sessionId
+     */
     private void close(long sessionId) {
         // 发送会话过期的请求操作
         Request si = new Request(null, sessionId, 0, OpCode.closeSession, null, null);

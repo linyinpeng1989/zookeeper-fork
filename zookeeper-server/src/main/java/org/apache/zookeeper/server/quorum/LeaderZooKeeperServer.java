@@ -170,6 +170,13 @@ public class LeaderZooKeeperServer extends QuorumZooKeeperServer {
             getZooKeeperServerListener());
     }
 
+    /**
+     * 会话激活（处理客户端 Ping 请求）
+     *
+     * @param sess 会话ID
+     * @param to   超时时间
+     * @return 会话激活是否成功
+     */
     public boolean touch(long sess, int to) {
         return sessionTracker.touchSession(sess, to);
     }

@@ -117,6 +117,8 @@ public class ExpiryQueue<E> {
     public Long update(E elem, int timeout) {
         Long prevExpiryTime = elemMap.get(elem);
         long now = Time.currentElapsedTime();
+
+        // 计算会话新的超时时间
         Long newExpiryTime = roundToNextInterval(now + timeout);
 
         if (newExpiryTime.equals(prevExpiryTime)) {

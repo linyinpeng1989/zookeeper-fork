@@ -192,7 +192,7 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
                 for (SessionImpl s : sessionExpiryQueue.poll()) {
                     ServerMetrics.getMetrics().STALE_SESSIONS_EXPIRED.add(1);
 
-                    // 设置会话实体的状态为关闭
+                    // 先把会话实体的状态设为关闭，保证在会话清理期间不再处理来自该客户端的新请求
                     setSessionClosing(s.sessionId);
 
                     // 发起会话过期的请求操作，进行会话过期的清理工作
@@ -205,7 +205,15 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
         LOG.info("SessionTrackerImpl exited loop!");
     }
 
+    /**
+     * 实际处理客户端 Ping 请求逻辑（会话激活）
+     *
+     * @param sessionId 会话ID
+     * @param timeout   超时时间
+     * @return 会话激活是否成功
+     */
     public synchronized boolean touchSession(long sessionId, int timeout) {
+        // 查询会话ID对应的会话实例
         SessionImpl s = sessionsById.get(sessionId);
 
         if (s == null) {
@@ -213,15 +221,23 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
             return false;
         }
 
+        // 校验会话是否已关闭
         if (s.isClosing()) {
             logTraceTouchClosingSession(sessionId, timeout);
             return false;
         }
 
+        // 会话迁移（更新会话过期时间）
         updateSessionExpiry(s, timeout);
         return true;
     }
 
+    /**
+     * 会话迁移（更新会话过期时间）
+     *
+     * @param s
+     * @param timeout
+     */
     private void updateSessionExpiry(SessionImpl s, int timeout) {
         logTraceTouchSession(s.sessionId, timeout, "");
         sessionExpiryQueue.update(s, timeout);
@@ -346,6 +362,7 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
             throw new KeeperException.UnknownSessionException();
         }
 
+        // 判断 Session 是否已关闭
         if (session.isClosing()) {
             throw new KeeperException.SessionExpiredException();
         }

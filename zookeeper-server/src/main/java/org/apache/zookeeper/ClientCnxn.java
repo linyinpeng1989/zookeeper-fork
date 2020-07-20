@@ -68,15 +68,15 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Client端的核心实现：负责客户端和服务器之间的通信，主要包括两个主要成员SendThread和EventThread。
  * <p>
  * SendThread：
- * 1. 断连重试
- * 2. 心跳检测
- * 3. IO读写
+ *      1. 断连重试
+ *      2. 心跳检测
+ *      3. IO读写
  * <p>
  * EventThread：
- * 1. 事件处理
- * 1.1. 关闭事件 EventOfDeeath
- * 1.2. WatcherEvent
- * 1.3. 常规请求响应 Packet
+ *      1. 事件处理
+ *          1.1. 关闭事件 EventOfDeeath
+ *          1.2. WatcherEvent
+ *          1.3. 常规请求响应 Packet
  */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public class ClientCnxn {
@@ -891,6 +891,10 @@ public class ClientCnxn {
     class SendThread extends ZooKeeperThread {
 
         private long lastPingSentNs;
+
+        /**
+         * 底层 Socket 通信层实现，默认实现为 ClientCnxnSocketNIO
+         */
         private final ClientCnxnSocket clientCnxnSocket;
         private Random r = new Random();
         private boolean isFirstConnect = true;
