@@ -293,14 +293,19 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
      *
      */
     public ZooKeeperServer(FileTxnSnapLog txnLogFactory, int tickTime, int minSessionTimeout, int maxSessionTimeout, int clientPortListenBacklog, ZKDatabase zkDb, String initialConfig, boolean reconfigEnabled) {
-        // 创建 ZooKeeper 服务的统计工具类 ServerStats
+        // 创建 ZooKeeper 服务的统计工具类 ServerStats（服务器统计器，包含最基本的运行时信息）
         serverStats = new ServerStats(this);
         this.txnLogFactory = txnLogFactory;
         this.txnLogFactory.setServerStats(this.serverStats);
         this.zkDb = zkDb;
+
+        // 设置服务端的 tickTime（客户端与服务端之间维持心跳的时间间隔）
         this.tickTime = tickTime;
+
+        // 设置服务端的 Session 过期时间上下限，用来限制客户端传的 Session 过期时间
         setMinSessionTimeout(minSessionTimeout);
         setMaxSessionTimeout(maxSessionTimeout);
+
         this.listenBacklog = clientPortListenBacklog;
         this.reconfigEnabled = reconfigEnabled;
 
@@ -657,6 +662,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     }
 
     public synchronized void startup() {
+        // 创建会话管理器（线程）并启动
         if (sessionTracker == null) {
             createSessionTracker();
         }
@@ -668,6 +674,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         // 创建请求限流器线程并启动该线程
         startRequestThrottler();
 
+        // 注册 JMX 服务，以 JMX 的方式暴露 ZooKeeper 服务器运行时的一些信息
         registerJMX();
 
         startJvmPauseMonitor();

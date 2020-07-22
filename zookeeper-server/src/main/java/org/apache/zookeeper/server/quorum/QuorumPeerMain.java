@@ -123,7 +123,7 @@ public class QuorumPeerMain {
         }
 
         // Start and schedule the purge task
-        // 创建文件清理器并启动，定时清理历史文件
+        // 创建历史文件清理器并启动，自动对事务日志和快照数据文件等历史数据进行定时清理
         DatadirCleanupManager purgeMgr = new DatadirCleanupManager(
             config.getDataDir(),
             config.getDataLogDir(),
@@ -134,7 +134,9 @@ public class QuorumPeerMain {
         // 判断是否采取集群模式
         if (args.length == 1 && config.isDistributed()) {
             runFromConfig(config);
-        } else {
+        }
+        // 非集群模式（单机模式）
+        else {
             LOG.warn("Either no config or no quorum defined in config, running in standalone mode");
             // there is only server in the quorum -- run as standalone
             ZooKeeperServerMain.main(args);
@@ -179,9 +181,9 @@ public class QuorumPeerMain {
                 secureCnxnFactory.configure(config.getSecureClientPortAddress(), config.getMaxClientCnxns(), config.getClientPortListenBacklog(), true);
             }
 
-            // 创建一个 QuorumPeer 实例（每个 QuorumPeer 类的实例可以看作是 ZooKeeper 集群中的一台服务器），并初始化一些配置属性
+            // 创建一个 QuorumPeer 实例
             quorumPeer = getQuorumPeer();
-            // 设置 FileTxnSnapLog 实例，用于管理 ZooKeeper 的数据存储等相关操作
+            // 将 FileTxnSnapLog 组件注册到 QuorumPeer中。FileTxnSnapLog 用于管理 ZooKeeper 的数据存储等相关操作
             quorumPeer.setTxnFactory(new FileTxnSnapLog(config.getDataLogDir(), config.getDataDir()));
             quorumPeer.enableLocalSessions(config.areLocalSessionsEnabled());
             quorumPeer.enableLocalSessionsUpgrading(config.isLocalSessionsUpgradingEnabled());
@@ -191,22 +193,29 @@ public class QuorumPeerMain {
             // 分别是LeaderElection 、AuthFastLeaderElection、FastLeaderElection，目前仅支持 FastLeaderElection）
             quorumPeer.setElectionType(config.getElectionAlg());
             quorumPeer.setMyid(config.getServerId());
+
+            // 设置服务端的 tickTime（客户端与服务端之间维持心跳的时间间隔）
             quorumPeer.setTickTime(config.getTickTime());
+
+            // 设置服务端的 Session 过期时间上下限，用来限制客户端传的 Session 过期时间
             quorumPeer.setMinSessionTimeout(config.getMinSessionTimeout());
             quorumPeer.setMaxSessionTimeout(config.getMaxSessionTimeout());
+
             quorumPeer.setInitLimit(config.getInitLimit());
             quorumPeer.setSyncLimit(config.getSyncLimit());
             quorumPeer.setConnectToLearnerMasterLimit(config.getConnectToLearnerMasterLimit());
             quorumPeer.setObserverMasterPort(config.getObserverMasterPort());
             quorumPeer.setConfigFileName(config.getConfigFilename());
             quorumPeer.setClientPortListenBacklog(config.getClientPortListenBacklog());
+
+            // 将 ZKDatabase 组件注册到 QuorumPeer中。ZKDatabase 是 ZooKeeper 的内存数据库，负责管理 ZooKeeper 的所有会话记录以及 DataTree 和事务日志的存储
             quorumPeer.setZKDatabase(new ZKDatabase(quorumPeer.getTxnFactory()));
             quorumPeer.setQuorumVerifier(config.getQuorumVerifier(), false);
             if (config.getLastSeenQuorumVerifier() != null) {
                 quorumPeer.setLastSeenQuorumVerifier(config.getLastSeenQuorumVerifier(), false);
             }
             quorumPeer.initConfigInZKDatabase();
-            // ServerCnxnFactory 类 NIO 工厂方法
+            // 将 ServerCnxnFactory 组件注册到 QuorumPeer中。 ServerCnxnFactory 用于指定 NIO 框架
             quorumPeer.setCnxnFactory(cnxnFactory);
             quorumPeer.setSecureCnxnFactory(secureCnxnFactory);
             quorumPeer.setSslQuorum(config.isSslQuorum());

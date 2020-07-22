@@ -34,12 +34,12 @@ public class ServerStats {
     private static final Logger LOG = LoggerFactory.getLogger(ServerStats.class);
 
     /**
-     * 服务端向客户端发送的响应包次数
+     * 服务端向客户端发送的响应包次数（从 ZooKeeper 启动开始，或最近一次重置服务端统计信息之后）
      */
     private final AtomicLong packetsSent = new AtomicLong();
 
     /**
-     * 接收到的客户端发送的请求包次数
+     * 接收到的客户端发送的请求包次数（从 ZooKeeper 启动开始，或最近一次重置服务端统计信息之后）
      */
     private final AtomicLong packetsReceived = new AtomicLong();
 

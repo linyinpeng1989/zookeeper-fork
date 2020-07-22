@@ -84,6 +84,10 @@ import static org.apache.zookeeper.common.NetUtils.formatInetAddr;
  * </pre>
  *
  * The request for the current leader will consist solely of an xid: int xid;
+ *
+ * QuorumPeer 是 Zookeeper 服务器实例 ZooKeeperServer 的托管者。
+ * 从集群层面上来看，QuorumPeer 代表了 ZooKeeper 集群中的一台机器。在运行期间，
+ * QuorumPeer 会不断检测当前服务器实例的运行状态，同时根据情况发起 Leader 选举。
  */
 public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider {
 
@@ -1065,7 +1069,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             System.out.println(e);
         }
 
-        // 开始 Leader 选举过程
+        // 开始进行 Leader 选举前设置一些属性，包括当前选票信息、选举算法等，实际选举逻辑由 run() 方法实现
         startLeaderElection();
 
         // 启动 JVM 监控线程（守护线程），监控 JVM 宕机等异常行为
@@ -1134,12 +1138,12 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     }
 
     /**
-     * 开始进行 Leader 选举过程，线程安全（synchronized）
+     * 开始进行 Leader 选举前设置一些属性，包括当前选票信息、选举算法等
      */
     public synchronized void startLeaderElection() {
         try {
-            // 如果当前服务的状态为 LOOKING，则将自身作为 Leader 服务器进行投票（发送的服务器的 myid（服务器标识符）
-            // 和 ZXID (集群投票信息标识符)等选票信息字段都指向本机服务器）
+            // 如果当前服务的状态为 LOOKING，则将自身作为 Leader 服务器进行投票（主要包含：服务器标识符 myid
+            // 、最新的 ZXID、当前服务器 epoch），即每个服务器都会给自己投票。
             if (getPeerState() == ServerState.LOOKING) {
                 currentVote = new Vote(myid, getLastLoggedZxid(), getCurrentEpoch());
             }
@@ -1289,12 +1293,15 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         case 2:
             throw new UnsupportedOperationException("Election Algorithm 2 is not supported.");
         case 3:
+            // 创建 Leader 选举所需的网络 I/O 层 QuorumCnxManager
             QuorumCnxManager qcm = createCnxnManager();
             QuorumCnxManager oldQcm = qcmRef.getAndSet(qcm);
             if (oldQcm != null) {
                 LOG.warn("Clobbering already-set QuorumCnxManager (restarting leader election?)");
                 oldQcm.halt();
             }
+
+            // 启动对 Leader 选举端口的监听
             QuorumCnxManager.Listener listener = qcm.listener;
             if (listener != null) {
                 listener.start();
@@ -1348,6 +1355,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
 
         LOG.debug("Starting quorum peer");
         try {
+            // 注册 JMX 服务
             jmxQuorumBean = new QuorumBean(this);
             MBeanRegistry.getInstance().register(jmxQuorumBean, null);
 
@@ -1383,6 +1391,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
              */
             while (running) {
                 switch (getPeerState()) {
+
+                // 处于 LOOKING 状态，继续进行 Leader 选举
                 case LOOKING:
                     LOG.info("LOOKING");
                     ServerMetrics.getMetrics().LOOKING_COUNT.add(1);
@@ -1446,6 +1456,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                         }
                     }
                     break;
+                // Leader 选举完毕，若本机是 OBSERVING 状态，则创建 Observer 实例，并与 Leader 关联
                 case OBSERVING:
                     try {
                         LOG.info("OBSERVING");
@@ -1465,6 +1476,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                         }
                     }
                     break;
+                // Leader 选举完毕，若本机是 FOLLOWING 状态，则创建 Follower 实例，并与 Leader 关联
                 case FOLLOWING:
                     try {
                         LOG.info("FOLLOWING");

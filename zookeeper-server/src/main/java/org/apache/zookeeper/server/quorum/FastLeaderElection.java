@@ -109,8 +109,11 @@ public class FastLeaderElection implements Election {
      * a given peer has changed its vote, either because it has
      * joined leader election or because it learned of another
      * peer with higher zxid or same zxid and higher server id
+     * <p>
+     * <p>
+     * Notification表示收到的选举投票信息（其他服务器发来的选举投票信息），其包含了被选举者的id、zxid、选举周期等信息，
+     * 其buildMsg方法将选举信息封装至ByteBuffer中再进行发送
      */
-
     public static class Notification {
         /*
          * Format version, introduced in 3.4.6
@@ -119,30 +122,52 @@ public class FastLeaderElection implements Election {
         public static final int CURRENTVERSION = 0x2;
         int version;
 
-        /*
+        /**
          * Proposed leader
-         */ long leader;
+         * <p>
+         * 被推选的leader的id
+         */
+        long leader;
 
-        /*
+        /**
          * zxid of the proposed leader
-         */ long zxid;
+         * <p>
+         * 被推选的leader的最大事务id
+         */
+        long zxid;
 
-        /*
+        /**
          * Epoch
-         */ long electionEpoch;
+         * <p>
+         * 推选者的选举周期
+         */
+        long electionEpoch;
 
-        /*
+        /**
          * current state of sender
-         */ QuorumPeer.ServerState state;
+         * <p>
+         * 推选者的状态
+         */
+        QuorumPeer.ServerState state;
 
-        /*
+        /**
          * Address of sender
-         */ long sid;
+         * <p>
+         * 推选者的id
+         */
+        long sid;
 
+        /**
+         * 集群校验器，判断一组 server 能否构建集群
+         */
         QuorumVerifier qv;
-        /*
+
+        /**
          * epoch of the proposed leader
-         */ long peerEpoch;
+         * <p>
+         * 被推选者的选举周期
+         */
+        long peerEpoch;
 
     }
 
@@ -152,6 +177,9 @@ public class FastLeaderElection implements Election {
      * Messages that a peer wants to send to other peers.
      * These messages can be both Notifications and Acks
      * of reception of notification.
+     * <p>
+     * <p>
+     * ToSend表示发送给其他服务器的选举投票信息，也包含了被选举者的id、zxid、选举周期等信息
      */
     public static class ToSend {
 
@@ -173,33 +201,52 @@ public class FastLeaderElection implements Election {
             this.configData = configData;
         }
 
-        /*
+        /**
          * Proposed leader in the case of notification
-         */ long leader;
+         * <p>
+         * 被推举的leader的id
+         */
+        long leader;
 
-        /*
+        /**
          * id contains the tag for acks, and zxid for notifications
-         */ long zxid;
+         * <p>
+         * 被推举的leader的最大事务id
+         */
+        long zxid;
 
-        /*
+        /**
          * Epoch
-         */ long electionEpoch;
+         * <p>
+         * 推举者的选举周期
+         */
+        long electionEpoch;
 
-        /*
+        /**
          * Current state;
-         */ QuorumPeer.ServerState state;
+         * <p>
+         * 推举者的状态
+         */
+        QuorumPeer.ServerState state;
 
-        /*
+        /**
          * Address of recipient
-         */ long sid;
+         * <p>
+         * 推举者的id
+         */
+        long sid;
 
-        /*
+        /**
          * Used to send a QuorumVerifier (configuration info)
-         */ byte[] configData = dummyData;
+         */
+        byte[] configData = dummyData;
 
-        /*
+        /**
          * Leader epoch
-         */ long peerEpoch;
+         * <p>
+         * 被推举的leader的选举周期
+         */
+        long peerEpoch;
 
     }
 
@@ -218,8 +265,12 @@ public class FastLeaderElection implements Election {
         /**
          * Receives messages from instance of QuorumCnxManager on
          * method run(), and processes such messages.
+         * <p>
+         * <p>
+         * WorkerReceiver实现了Runnable接口，是选票接收器。其会不断地从QuorumCnxManager中获取其他服务器发来的选举消息，
+         * 并将其转换成一个选票，然后保存到 recvqueue 中，在选票接收过程中，如果发现该外部选票的选举轮次小于当前服务器的，
+         * 那么忽略该外部投票，同时立即发送自己的内部投票。其是将QuorumCnxManager的Message转化为FastLeaderElection的Notification
          */
-
         class WorkerReceiver extends ZooKeeperThread {
 
             volatile boolean stop;
@@ -237,6 +288,7 @@ public class FastLeaderElection implements Election {
                 while (!stop) {
                     // Sleeps on receive
                     try {
+                        // 从 QuorumCnxManager 的 recvQueue 中获取其他服务器发来的选举消息
                         response = manager.pollRecvQueue(3000, TimeUnit.MILLISECONDS);
                         if (response == null) {
                             continue;
@@ -261,6 +313,7 @@ public class FastLeaderElection implements Election {
                         response.buffer.clear();
 
                         // Instantiate Notification and set its attributes
+                        // 实例化 Notification，并初始化属性
                         Notification n = new Notification();
 
                         int rstate = response.buffer.getInt();
@@ -342,9 +395,13 @@ public class FastLeaderElection implements Election {
                          * If it is from a non-voting server (such as an observer or
                          * a non-voting follower), respond right away.
                          */
+                        // 当前投票者集合不包含 sid（发送选举信息的服务器）
                         if (!validVoter(response.sid)) {
+                            // 获取自身投票信息
                             Vote current = self.getCurrentVote();
                             QuorumVerifier qv = self.getQuorumVerifier();
+
+                            // 构造 ToSend 信息
                             ToSend notmsg = new ToSend(
                                 ToSend.mType.notification,
                                 current.getId(),
@@ -355,12 +412,16 @@ public class FastLeaderElection implements Election {
                                 current.getPeerEpoch(),
                                 qv.toString().getBytes());
 
+                            // 放入 sendqueue 队列，等待发送
                             sendqueue.offer(notmsg);
-                        } else {
+                        }
+                        // 当前投票者集合包含 sid 时，表示接收到 sid 对应服务器的选票信息
+                        else {
                             // Receive new message
                             LOG.debug("Receive new notification message. My id = {}", self.getId());
 
                             // State of peer that sent this message
+                            // 推选者的状态
                             QuorumPeer.ServerState ackstate = QuorumPeer.ServerState.LOOKING;
                             switch (rstate) {
                             case 0:
@@ -379,6 +440,7 @@ public class FastLeaderElection implements Election {
                                 continue;
                             }
 
+                            // 获取 Leader 的 id、zxid、选举周期、服务器id等
                             n.leader = rleader;
                             n.zxid = rzxid;
                             n.electionEpoch = relectionEpoch;
@@ -405,18 +467,23 @@ public class FastLeaderElection implements Election {
 
                             /*
                              * If this server is looking, then send proposed leader
+                             *
+                             * 本服务器为 LOOKING 状态时
                              */
-
                             if (self.getPeerState() == QuorumPeer.ServerState.LOOKING) {
+                                // 将消息放入 recvqueue 队列中
                                 recvqueue.offer(n);
 
                                 /*
                                  * Send a notification back if the peer that sent this
                                  * message is also looking and its logical clock is
                                  * lagging behind.
+                                 *
+                                 * 推选者服务器为 LOOKING 状态，并且推选者的选举周期小于逻辑时钟
                                  */
                                 if ((ackstate == QuorumPeer.ServerState.LOOKING)
                                     && (n.electionEpoch < logicalclock.get())) {
+                                    // 创建新的投票，并且构建 ToSend 消息（将本服务器的内部投票发送给该服务器）
                                     Vote v = getVote();
                                     QuorumVerifier qv = self.getQuorumVerifier();
                                     ToSend notmsg = new ToSend(
@@ -428,14 +495,21 @@ public class FastLeaderElection implements Election {
                                         response.sid,
                                         v.getPeerEpoch(),
                                         qv.toString().getBytes());
+                                    // 将发送消息放置于队列，等待发送
                                     sendqueue.offer(notmsg);
                                 }
-                            } else {
+                            }
+                            // 推选者服务器状态不为 LOOKING
+                            else {
                                 /*
                                  * If this server is not looking, but the one that sent the ack
                                  * is looking, then send back what it believes to be the leader.
+                                 *
+                                 * 获取当前投票信息
                                  */
                                 Vote current = self.getCurrentVote();
+
+                                // 推选者服务器为 LOOKING 状态时
                                 if (ackstate == QuorumPeer.ServerState.LOOKING) {
                                     if (self.leader != null) {
                                         if (leadingVoteSet != null) {
@@ -480,8 +554,11 @@ public class FastLeaderElection implements Election {
         /**
          * This worker simply dequeues a message to send and
          * and queues it on the manager's queue.
+         * <p>
+         * <p>
+         * WorkerSender也实现了Runnable接口，为选票发送器，其会不断地从sendqueue中获取待发送的选票，并将其传递到底层QuorumCnxManager中，
+         * 其过程是将FastLeaderElection的ToSend转化为QuorumCnxManager的Message。
          */
-
         class WorkerSender extends ZooKeeperThread {
 
             volatile boolean stop;
@@ -742,6 +819,9 @@ public class FastLeaderElection implements Election {
          *  as current zxid, but server id is higher.
          */
 
+        // 1. 判断消息里的epoch是不是比当前的大，如果大则消息中id对应的服务器就是leader
+        // 2. 如果epoch相等则判断zxid，如果消息里的zxid大，则消息中id对应的服务器就是leader
+        // 3. 如果前面两个都相等那就比较服务器id，如果大，则其就是leader
         return ((newEpoch > curEpoch)
                 || ((newEpoch == curEpoch)
                     && ((newZxid > curZxid)
@@ -943,7 +1023,9 @@ public class FastLeaderElection implements Election {
             int notTimeout = minNotificationInterval;
 
             synchronized (this) {
+                // 更新逻辑时钟，没进行一轮新的 Leader 选举，都需要更新逻辑时钟
                 logicalclock.incrementAndGet();
+                // 更新选票（初始化选票）
                 updateProposal(getInitId(), getInitLastLoggedZxid(), getPeerEpoch());
             }
 
@@ -951,6 +1033,8 @@ public class FastLeaderElection implements Election {
                 "New election. My id = {}, proposed zxid=0x{}",
                 self.getId(),
                 Long.toHexString(proposedZxid));
+
+            // 向其他服务器发送自己的选票（已更新的选票）
             sendNotifications();
 
             SyncedLearnerTracker voteSet;
@@ -1123,6 +1207,8 @@ public class FastLeaderElection implements Election {
     /**
      * Check if a given sid is represented in either the current or
      * the next voting view
+     *
+     * 判断当前投票者集合中是否包含 sid
      *
      * @param sid     Server identifier
      * @return boolean

@@ -46,7 +46,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * of txnlog and snapshot
  * classes
  *
- * 用于管理 ZooKeeper 的数据存储等相关操作，可以看作是 ZooKeeper 服务层提供底层持久化的接口。
+ * 用于管理 ZooKeeper 的数据存储等相关操作，可以看作是 ZooKeeper 服务层提供底层持久化的接口,
+ * 提供一系列操作数据文件的接口，包括事务日志文件和快照数据文件。
  */
 public class FileTxnSnapLog {
 
