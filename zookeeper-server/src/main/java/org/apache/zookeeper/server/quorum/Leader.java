@@ -412,7 +412,7 @@ public class Leader extends LearnerMaster {
     protected final Proposal newLeaderProposal = new Proposal();
 
     /**
-     * LearnerCnxAcceptor 类用于接收集群中 Leader 节点的通知消息
+     * LearnerCnxAcceptor 接收器用于负责接收所有非 Leader 服务器的连接请求
      */
     class LearnerCnxAcceptor extends ZooKeeperCriticalThread {
 
