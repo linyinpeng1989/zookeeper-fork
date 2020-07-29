@@ -454,10 +454,28 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
 
     }
 
+    /**
+     * 服务器状态枚举
+     */
     public enum ServerState {
+        /**
+         * 寻找 Leader 状态，当服务器处于该状态时，则认为集群中没有 Leader，需要进入 Leader 选举流程
+         */
         LOOKING,
+
+        /**
+         * 跟随者状态，处于该状态的服务器的角色为 Follower
+         */
         FOLLOWING,
+
+        /**
+         * 领导者状态，处于该状态的服务器的角色为 Leader
+         */
         LEADING,
+
+        /**
+         * 观察者状态，处于该状态的服务器的角色为 Observer
+         */
         OBSERVING
     }
 

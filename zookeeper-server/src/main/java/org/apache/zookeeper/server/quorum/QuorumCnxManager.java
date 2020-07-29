@@ -68,7 +68,9 @@ import static org.apache.zookeeper.common.NetUtils.formatInetAddr;
  * Although this is not a problem for the leader election, it could be a problem
  * when consolidating peer communication. This is to be verified, though.
  *
- * QuorumCnxManager 是用来选举 Leader 节点的工具类，是使用 TCP 实现的一个连接管理器
+ * QuorumCnxManager 是用来选举 Leader 节点的工具类，是使用 TCP 实现的一个连接管理器，作用与 ClientCnxn 类似。
+ * ClientCnxn 是 ZooKeeper 客户端中用于处理网络 I/O 的一个管理器，而 QuorumCnxManager 负责各台服务器之间的
+ * 底层 Leader 选举过程中的网络通信。
  */
 
 public class QuorumCnxManager {
@@ -129,17 +131,28 @@ public class QuorumCnxManager {
      */
     private AtomicInteger connectionThreadCnt = new AtomicInteger(0);
 
-    /*
+    /**
      * Mapping from Peer to Thread number
      *
-     * 用来管理每一个通信的服务器
+     * 发送器集合、每个 SendWorker 消息发送器，都对应一台远程 ZooKeeper 服务器，负责消息发送。
+     *      key - ZooKeeper 服务器的 SID
+     *      value - 消息发送器 SendWorker 实例
      */
     final ConcurrentHashMap<Long, SendWorker> senderWorkerMap;
+
+    /**
+     * 消息发送队列，用于保存那些待发送的消息。
+     */
     final ConcurrentHashMap<Long, BlockingQueue<ByteBuffer>> queueSendMap;
+
+    /**
+     * 最近发送过的消息，为每个 SID 保留最近发送过的一个消息
+     */
     final ConcurrentHashMap<Long, ByteBuffer> lastMessageSent;
 
-    /*
+    /**
      * Reception queue
+     * 消息接收队列，用于存放那些从其他服务器接收到的消息
      */
     public final BlockingQueue<Message> recvQueue;
 
@@ -289,6 +302,7 @@ public class QuorumCnxManager {
         QuorumAuthServer authServer, QuorumAuthLearner authLearner, int socketTimeout, boolean listenOnAllIPs,
         int quorumCnxnThreadsSize, boolean quorumSaslAuthEnabled) {
 
+        // 初始化消息接收队列、消息发送队列、发送器集合、最近发送消息集合等容器
         this.recvQueue = new CircularBlockingQueue<>(RECV_CAPACITY);
         this.queueSendMap = new ConcurrentHashMap<>();
         this.senderWorkerMap = new ConcurrentHashMap<>();
@@ -523,6 +537,8 @@ public class QuorumCnxManager {
      * to this server already or not. If it does, then it sends the smallest
      * possible long value to lose the challenge.
      *
+     * 同步地接收其他服务器的创建连接请求
+     *
      */
     public void receiveConnection(final Socket sock) {
         DataInputStream din = null;
@@ -541,6 +557,8 @@ public class QuorumCnxManager {
     /**
      * Server receives a connection request and handles it asynchronously via
      * separate thread.
+     *
+     * 异步地接收其他服务器的创建连接请求
      */
     public void receiveConnectionAsync(final Socket sock) {
         try {
@@ -577,6 +595,7 @@ public class QuorumCnxManager {
         MultipleAddresses electionAddr = null;
 
         try {
+            // 获取请求建立连接的服务器 SID
             protocolVersion = din.readLong();
             if (protocolVersion >= 0) { // this is a server id and not a protocol version
                 sid = protocolVersion;
@@ -596,6 +615,7 @@ public class QuorumCnxManager {
                 }
             }
 
+            // 如果是 Observer 服务器，则 observerCounter 计数加 1
             if (sid == QuorumPeer.OBSERVER_ID) {
                 /*
                  * Choose identifier at random. We need a value to identify
@@ -612,7 +632,10 @@ public class QuorumCnxManager {
 
         // do authenticating learner
         authServer.authenticate(sock, din);
+
         //If wins the challenge, then close the new connection.
+        // 为了避免两台机器之间重复地创建 TPC 连接，ZooKeeper 设置了一种建立 TCP 连接的规则：只允许 SID 大的服务器主动和其他服务器
+        // 建立连接，否则直接断开连接。
         if (sid < self.getId()) {
             /*
              * This replica might still believe that the connection to sid is
@@ -640,13 +663,17 @@ public class QuorumCnxManager {
             // we saw this case in ZOOKEEPER-2164
             LOG.warn("We got a connection request from a server with our own ID. "
                      + "This should be either a configuration error, or a bug.");
-        } else { // Otherwise start worker threads to receive data.
+        }
+        // Otherwise start worker threads to receive data.
+        // 当请求建立连接的服务器 SID 比本机 SID 大时，建立 TCP 连接
+        else {
+            // 建立消息发送器和消息接收器，并启动他们（两者都是线程，主要逻辑在 run 方法中实现）
             SendWorker sw = new SendWorker(sock, sid);
             RecvWorker rw = new RecvWorker(sock, din, sid, sw);
             sw.setRecv(rw);
 
+            // 判断是否已经存在 SID 对应的消息发送器，若已存在就先断开旧的连接
             SendWorker vsw = senderWorkerMap.get(sid);
-
             if (vsw != null) {
                 vsw.finish();
             }
@@ -663,6 +690,8 @@ public class QuorumCnxManager {
     /**
      * Processes invoke this message to queue a message to send. Currently,
      * only leader election uses it.
+     *
+     * 向起他服务器发送消息
      */
     public void toSend(Long sid, ByteBuffer b) {
         /*
@@ -1146,6 +1175,9 @@ public class QuorumCnxManager {
          */
         SendWorker(Socket sock, Long sid) {
             super("SendWorker:" + sid);
+            /**
+             * 建立 TCP 连接的其他服务器 SID
+             */
             this.sid = sid;
             this.sock = sock;
             recvWorker = null;
@@ -1228,6 +1260,9 @@ public class QuorumCnxManager {
                  * message than that stored in lastMessage. To avoid sending
                  * stale message, we should send the message in the send queue.
                  */
+                // 如果 SID 对应的消息发送队列为空，则从 lastMessageSent 中取出一个最近发送过的消息再次发送。
+                // 这种处理方式，主要为了解决一种场景：接收方在接收消息千，或者在接收到消息后服务器挂掉了，导致消息尚未被正确处理。
+                // ZooKeeper 能够保证接收方在处理消息的时候，会对重复消息进行正确的处理。
                 BlockingQueue<ByteBuffer> bq = queueSendMap.get(sid);
                 if (bq == null || isSendQueueEmpty(bq)) {
                     ByteBuffer b = lastMessageSent.get(sid);
@@ -1257,9 +1292,11 @@ public class QuorumCnxManager {
                             break;
                         }
 
-                        // 发送消息
                         if (b != null) {
+                            // 保留 sid 最近一次发送的消息（每次覆盖旧值）
                             lastMessageSent.put(sid, b);
+
+                            // 通过 SendWorker 发送消息，将消息写入 dout 中
                             send(b);
                         }
                     } catch (InterruptedException e) {
@@ -1374,8 +1411,8 @@ public class QuorumCnxManager {
                     /**
                      * Allocates a new ByteBuffer to receive the message
                      */
-                    final byte[] msgArray = new byte[length];
                     // 读取消息内容，并添加到消息接收队列中
+                    final byte[] msgArray = new byte[length];
                     din.readFully(msgArray, 0, length);
                     addToRecvQueue(new Message(ByteBuffer.wrap(msgArray), sid));
                 }
@@ -1440,6 +1477,8 @@ public class QuorumCnxManager {
      * element at the tail of the queue.
      *
      * @param msg Reference to the message to be inserted in the queue
+     *
+     * 将其他服务器发送的消息放入消息接收队列中
      */
     public void addToRecvQueue(final Message msg) {
       final boolean success = this.recvQueue.offer(msg);
