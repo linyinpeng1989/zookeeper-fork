@@ -47,7 +47,8 @@ import java.util.concurrent.*;
  *             since it only contains committed txns.
  *
  *
- * SyncRequestProcessor 处理器将请求存入磁盘，其将请求批量的存入磁盘以提高效率，请求在写入磁盘之前是不会被转发到下个处理器的。
+ * SyncRequestProcessor 是事务日志记录处理器，该处理器主要用来将事务请求记录到事务日志文件中去，同时还会触发 Zookeeper
+ * 进行数据快照。
  */
 public class SyncRequestProcessor extends ZooKeeperCriticalThread implements RequestProcessor {
 

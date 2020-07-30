@@ -18,8 +18,6 @@
 
 package org.apache.zookeeper.server.quorum;
 
-import java.io.Flushable;
-import java.io.IOException;
 import org.apache.zookeeper.ZooDefs.OpCode;
 import org.apache.zookeeper.server.Request;
 import org.apache.zookeeper.server.RequestProcessor;
@@ -27,6 +25,15 @@ import org.apache.zookeeper.server.ServerMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Flushable;
+import java.io.IOException;
+
+/**
+ * SendAckRequestProcessor 处理器主要负责在 SyncRequestProcessor 处理器完成事务日志记录后，向 Leader 服务器发送 ACK 消息以表明
+ * 自身完成了事务日志的记录工作。SendAckRequestProcessor 与 AckRequestProcessor 唯一的区别在于：AckRequestProcessor 处理器和 Leader
+ * 服务器在同一个服务器上，所以它的 ACK 反馈仅仅是一个本地操作；而 SendAckRequestProcessor 处理器由于在 Follower 服务器上，所以需要通过
+ * 以 ACK 消息的形式来向 Leader 服务器进行反馈。
+ */
 public class SendAckRequestProcessor implements RequestProcessor, Flushable {
 
     private static final Logger LOG = LoggerFactory.getLogger(SendAckRequestProcessor.class);

@@ -87,6 +87,8 @@ public class ProposalRequestProcessor implements RequestProcessor {
             if (shouldForwardToNextProcessor(request)) {
                 nextProcessor.processRequest(request);
             }
+
+            // 如果事务请求头不为空，表示是一个事务请求
             if (request.getHdr() != null) {
                 // We need to sync and get consensus on any transactions
                 try {

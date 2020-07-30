@@ -1201,6 +1201,8 @@ public class Leader extends LearnerMaster {
     /**
      * create a proposal and send it out to all the members
      *
+     * 创建一个提案并发送给所有的 Follower，进行一次集群内的投票
+     *
      * @param request
      * @return the proposal that is queued to send to all the members
      */
