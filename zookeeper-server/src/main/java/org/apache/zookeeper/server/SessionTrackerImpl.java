@@ -304,7 +304,10 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
     }
 
     public long createSession(int sessionTimeout) {
+        // 为客户端生成会话ID（sessionId）
         long sessionId = nextSessionId.getAndIncrement();
+
+        // 向 SessionTracker 中注册会话
         trackSession(sessionId, sessionTimeout);
         return sessionId;
     }
@@ -321,6 +324,7 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
 
         // findbugs2.0.3 complains about get after put.
         // long term strategy would be use computeIfAbsent after JDK 1.8
+        // 对会话ID 和 会话实体进行维护
         SessionImpl existedSession = sessionsById.putIfAbsent(id, session);
 
         if (existedSession != null) {
@@ -339,7 +343,7 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
                 + " session 0x" + Long.toHexString(id) + " " + sessionTimeout);
         }
 
-        // 将会话实体维护到会话过期队列中
+        // 将会话实体维护到会话过期队列中，并根据 ZooKeeper 会话管理的分桶策略将会话激活
         updateSessionExpiry(session, sessionTimeout);
         return added;
     }
